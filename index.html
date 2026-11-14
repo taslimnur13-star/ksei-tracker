@@ -94,6 +94,7 @@ tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','syst
         <button data-preset="foreign" class="btn">🌍 Dominasi Asing (&gt; 50%)</button>
         <button data-preset="nogocap" class="btn">📈 Bukan Gocap (Harga &gt; 50)</button>
         <button data-preset="accum" class="btn">🔥 Akumulasi Korporasi (Δ Korp ≥ +0,5 pp &amp; Δ Ritel ≤ −0,5 pp)</button>
+        <button data-preset="dis" class="btn">🧊 Distribusi (Korp turun ≥ 0,5 pp &amp; Ritel naik ≥ 0,5 pp)</button>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
         <div><label class="lbl">Cari Kode Saham</label><input id="filter-search" class="inp uppercase" placeholder="Misal: BUMI, BREN..."></div>
@@ -107,6 +108,7 @@ tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','syst
         <div><label class="lbl">Bandingkan dengan</label>
           <select id="filter-lookback" class="inp"><option value="1">1 periode lalu</option><option value="3">3 periode lalu</option><option value="6">6 periode lalu</option></select></div>
         <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 self-end pb-2"><input type="checkbox" id="filter-hide-unreliable" class="rounded"> Sembunyikan data tidak andal</label>
+        <div><label class="lbl">Sinyal</label><select id="filter-signal" class="inp"><option value="ALL">Semua</option><option value="ACC">Akumulasi</option><option value="DIS">Distribusi</option><option value="NET">Netral</option></select></div>
       </div>
     </div>
 
@@ -137,6 +139,7 @@ tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','syst
         <div class="bg-slate-50 dark:bg-slate-900/70 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800">
           <div class="flex items-center gap-2"><span id="t-code" class="text-lg font-mono font-bold text-blue-600 dark:text-blue-400">-</span><span id="t-group" class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-200 dark:bg-slate-800">Non-Grup</span></div>
           <p id="t-meta" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Pilih saham untuk melihat riwayat kepemilikan</p>
+          <p id="t-signal" class="text-xs font-semibold mt-1"></p>
         </div>
       </div>
       <div><span class="text-[11px] font-medium text-slate-400 block mb-1.5">Akses cepat saham konglomerasi (tersedia di dataset):</span><div id="pills" class="flex flex-wrap gap-1.5"></div></div>
@@ -151,6 +154,18 @@ tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','syst
         <thead><tr class="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800"><th class="th">Tanggal</th><th class="th text-right">Harga</th><th class="th text-right">Ritel (Local ID)</th><th class="th text-right">Korporasi (Local CP)</th><th class="th text-right">Institusi Lokal</th><th class="th text-right">Total Asing</th><th class="th text-right">Total Saham</th></tr></thead>
         <tbody id="t-body" class="divide-y divide-slate-100 dark:divide-slate-800/70 text-xs tabular-nums"></tbody>
       </table></div>
+    </div>
+    <div class="card p-4 sm:p-5">
+      <h3 class="font-semibold text-sm">Kalkulator Posisi &amp; Risiko <span class="font-normal text-slate-400">(1 lot = 100 lembar)</span></h3>
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-3">
+        <div><label class="lbl">Modal (Rp)</label><input type="number" id="rc-cap" class="inp" placeholder="100000000"></div>
+        <div><label class="lbl">Risiko per transaksi (%)</label><input type="number" id="rc-risk" step="0.1" class="inp" value="1"></div>
+        <div><label class="lbl">Harga masuk</label><input type="number" id="rc-entry" class="inp"></div>
+        <div><label class="lbl">Stop loss</label><input type="number" id="rc-stop" class="inp"></div>
+        <div><label class="lbl">Target (kelipatan risiko, R)</label><input type="number" id="rc-rr" step="0.5" class="inp" value="2"></div>
+      </div>
+      <div id="rc-out" class="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs"></div>
+      <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-3">Belum termasuk fee broker dan pajak. Tentukan stop loss dari chart (misalnya di bawah support), bukan dari angka yang nyaman.</p>
     </div>
   </section>
 
@@ -190,6 +205,9 @@ tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','syst
       <li>Komposisi: Ritel + Korporasi + Institusi Lokal (asuransi, dana pensiun, bank, reksadana) + Lainnya (sekuritas, yayasan, dll) + Asing.</li>
       <li>Δ dalam poin persentase (pp) terhadap periode pembanding yang dipilih.</li>
       <li>⚠ Cek aksi korporasi: jumlah saham berubah lebih dari 0,5%, sehingga persentase bisa bergeser tanpa transaksi. ⚠ Jeda: ada periode yang belum diunggah. ⚠ Cakupan: total lokal + asing di bawah 97% dari jumlah saham.</li>
+      <li>Sinyal: <b>Akumulasi</b> = Δ Korp ≥ +0,5 pp dan Δ Ritel ≤ −0,5 pp; <b>Distribusi</b> = kebalikannya. “×N periode” = N perubahan bulanan berturut-turut ke arah yang sama (terputus jika ada aksi korporasi). Akumulasi saat harga belum naik lebih menarik daripada saat harga sudah naik &gt; 30%.</li>
+      <li>🔸 Risiko likuiditas: float tipis (korp &gt; 85%), harga gocap, atau M.Cap &lt; Rp500 miliar. Saham seperti ini sulit dijual cepat dan harganya mudah bergerak liar.</li>
+      <li>Δ Harga memakai harga akhir bulan dari KSEI. Semua ambang (0,5 pp, 30%, 85%, Rp500 M) hanyalah panduan, bukan standar baku.</li>
       <li>Data bulanan tidak menunjukkan siapa atau kapan transaksi terjadi. Hasil bersifat indikasi, bukan rekomendasi beli/jual.</li>
     </ul>
   </details>
@@ -372,17 +390,45 @@ function pills(){
 }
 
 /* ===== TAB 1: SCREENER ===== */
-const COLS=[["code","Kode",0],["group","Grup Konglo",0],["price","Harga"],["secNum","Total Saham"],["pctRetail","% Ritel (ID)"],["pctCorp","% Korp (CP)"],["pctInstLocal","% Inst. Lokal"],["pctLocal","% Total Lokal"],["pctForeign","% Total Asing"],["mcapB","M.Cap (Miliar)"],["dRetail","Δ Ritel (pp)"],["dCorp","Δ Korp (pp)"]];
-$("thead").innerHTML=COLS.map(([k,l,r=1])=>`<th class="th cursor-pointer hover:text-blue-500 ${r?"text-right":"text-left"}" data-sort="${k}">${l} ↕</th>`).join("")+`<th class="th text-left">Catatan</th>`;
+const COLS=[["code","Kode",0],["group","Grup Konglo",0],["price","Harga"],["secNum","Total Saham"],["pctRetail","% Ritel (ID)"],["pctCorp","% Korp (CP)"],["pctInstLocal","% Inst. Lokal"],["pctLocal","% Total Lokal"],["pctForeign","% Total Asing"],["mcapB","M.Cap (Miliar)"],["dRetail","Δ Ritel (pp)"],["dCorp","Δ Korp (pp)"],["dPrice","Δ Harga (%)"]];
+$("thead").innerHTML=COLS.map(([k,l,r=1])=>`<th class="th cursor-pointer hover:text-blue-500 ${r?"text-right":"text-left"}" data-sort="${k}">${l} ↕</th>`).join("")+`<th class="th text-left">Sinyal</th><th class="th text-left">Catatan &amp; Risiko</th>`;
 
 function calcDelta(cur,prev,lb){
   const flags=[];
   if(cur.coverage!=null&&cur.coverage<97)flags.push(`Cakupan ${cur.coverage.toFixed(0)}%`);
-  if(!prev)return{dRetail:null,dCorp:null,dForeign:null,flags,unreliable:flags.length>0};
+  if(!prev)return{dRetail:null,dCorp:null,dForeign:null,dPrice:null,flags,unreliable:flags.length>0};
   const gap=Math.round((cur.timestamp-prev.timestamp)/864e5);
   if(gap>lb*45)flags.push(`Jeda ${gap} hari`);
   if(Math.abs(cur.secNum/prev.secNum-1)>0.005)flags.push("Cek aksi korporasi");
-  return{dRetail:cur.pctRetail-prev.pctRetail,dCorp:(cur.pctCorpTotal??cur.pctCorp)-(prev.pctCorpTotal??prev.pctCorp),dForeign:cur.pctForeign-prev.pctForeign,flags,unreliable:flags.length>0};
+  return{dPrice:prev.price>0?(cur.price/prev.price-1)*100:null,dRetail:cur.pctRetail-prev.pctRetail,dCorp:(cur.pctCorpTotal??cur.pctCorp)-(prev.pctCorpTotal??prev.pctCorp),dForeign:cur.pctForeign-prev.pctForeign,flags,unreliable:flags.length>0};
+}
+const TH=0.5;
+function riskTags(r){
+  const t=[],c=r.pctCorpTotal??r.pctCorp;
+  if(c>85)t.push("Float tipis (korp >85%)");
+  if(r.price<=50)t.push("Harga gocap");
+  if(r.mcapB<500)t.push("M.Cap kecil (<Rp500 M)");
+  return t;
+}
+function streakOf(code,ci){
+  let type=0,n=0;
+  for(let k=ci;k>0;k--){
+    const a=S.rec.get(`${S.dates[k]}|${code}`),b=S.rec.get(`${S.dates[k-1]}|${code}`);
+    if(!a||!b||Math.abs(a.secNum/b.secNum-1)>0.005)break;
+    const dc=(a.pctCorpTotal??a.pctCorp)-(b.pctCorpTotal??b.pctCorp),dr=a.pctRetail-b.pctRetail;
+    const t=dc>0&&dr<0?1:dc<0&&dr>0?-1:0;
+    if(!t||(type&&t!==type))break;
+    type=t;n++;
+  }
+  return{type,n};
+}
+function signal(r){
+  if(r.dCorp==null)return{key:"NA",label:"n/a (belum ada periode pembanding)",cls:"text-slate-400"};
+  if(r.flags.some(f=>f.startsWith("Cek aksi")))return{key:"NA",label:"Tidak dinilai: ada aksi korporasi",cls:"text-amber-500"};
+  const p=r.dPrice??0,n=r.streak?r.streak.n:0,ty=r.streak?r.streak.type:0;
+  if(r.dCorp>=TH&&r.dRetail<=-TH)return{key:"ACC",cls:"text-emerald-600 dark:text-emerald-400",label:"Akumulasi"+(ty===1&&n>=2?` ×${n} periode`:"")+(p>30?" · harga sudah naik jauh, hati-hati mengejar":p<=10?" · harga belum lari":"")};
+  if(r.dCorp<=-TH&&r.dRetail>=TH)return{key:"DIS",cls:"text-rose-600 dark:text-rose-400",label:"Distribusi"+(ty===-1&&n>=2?` ×${n} periode`:"")+(p>10?" · waspada, harga naik saat distribusi":"")};
+  return{key:"NET",cls:"text-slate-500",label:"Netral"};
 }
 function applyFilters(){
   if(!S.date){S.rows=[];renderTable();return}
@@ -390,8 +436,14 @@ function applyFilters(){
   const maxR=v("filter-max-retail"),minC=v("filter-min-corp"),minF=v("filter-min-foreign"),minP=v("filter-min-price"),minDC=v("filter-min-dcorp"),maxDR=v("filter-max-dretail"),hide=$("filter-hide-unreliable").checked;
   const lb=parseInt($("filter-lookback").value,10)||1,ci=S.dates.indexOf(S.date),pd=ci-lb>=0?S.dates[ci-lb]:null;
   let rows=[];
-  S.rec.forEach(r=>{if(r.date!==S.date)return;rows.push({...r,group:S.t2g[r.code]||"",...calcDelta(r,pd?S.rec.get(`${pd}|${r.code}`):null,lb)})});
+  S.rec.forEach(r=>{
+    if(r.date!==S.date)return;
+    const x={...r,group:S.t2g[r.code]||"",...calcDelta(r,pd?S.rec.get(`${pd}|${r.code}`):null,lb)};
+    x.risk=riskTags(r);x.streak=streakOf(r.code,ci);x.sig=signal(x);rows.push(x);
+  });
+  const sig=$("filter-signal").value;
   rows=rows.filter(r=>{
+    if(sig!=="ALL"&&r.sig.key!==sig)return false;
     if(q&&!r.code.includes(q))return false;
     if(g==="ANY"&&!r.group)return false;
     if(g!=="ALL"&&g!=="ANY"&&r.group!==g)return false;
@@ -420,7 +472,7 @@ function renderTable(){
   const t=S.rows.length,body=$("tbody");
   $("count").textContent=`${t.toLocaleString("id-ID")} Emiten`;
   if(!t){
-    body.innerHTML=`<tr><td colspan="13" class="py-10 text-center text-slate-400">${S.date?"Tidak ada saham yang sesuai filter pada tanggal ini.":"Unggah file KSEI atau klik “Muat Data Demo”."}</td></tr>`;
+    body.innerHTML=`<tr><td colspan="15" class="py-10 text-center text-slate-400">${S.date?"Tidak ada saham yang sesuai filter pada tanggal ini.":"Unggah file KSEI atau klik “Muat Data Demo”."}</td></tr>`;
     $("page-info").textContent="Menampilkan 0 - 0 dari 0";$("prev").disabled=$("next").disabled=true;return;
   }
   const s=(S.page-1)*S.size,e=Math.min(s+S.size,t);
@@ -433,17 +485,18 @@ function renderTable(){
       <td class="td ${rc}">${pc(r.pctRetail)}</td><td class="td font-medium">${pc(r.pctCorp)}</td>
       <td class="td text-slate-600 dark:text-slate-400">${pc(r.pctInstLocal)}</td><td class="td">${pc(r.pctLocal)}</td>
       <td class="td font-medium text-amber-600 dark:text-amber-400">${pc(r.pctForeign)}</td><td class="td font-semibold">${fmt(r.mcapB)}</td>
-      <td class="td">${dCell(r.dRetail)}</td><td class="td">${dCell(r.dCorp)}</td>
-      <td class="py-3 px-4 text-[10px] text-amber-500">${r.flags.length?"⚠ "+r.flags.join(" · "):""}</td></tr>`;
+      <td class="td">${dCell(r.dRetail)}</td><td class="td">${dCell(r.dCorp)}</td><td class="td">${dCell(r.dPrice)}</td>
+      <td class="py-3 px-4 text-[11px] font-semibold ${r.sig.cls}" style="min-width:12rem">${esc(r.sig.label)}</td>
+      <td class="py-3 px-4 text-[10px]"><span class="text-amber-500">${r.flags.length?"⚠ "+r.flags.join(" · "):""}</span>${r.risk.length?`<div class="text-orange-500">🔸 ${r.risk.join(" · ")}</div>`:""}</td></tr>`;
   }).join("");
   $("page-info").textContent=`Menampilkan ${s+1} - ${e} dari ${t.toLocaleString("id-ID")}`;
   $("prev").disabled=S.page<=1;$("next").disabled=e>=t;
 }
 function exportCSV(){
   if(!S.rows.length)return toast("Tidak ada data untuk di-export.","error");
-  const h=["Date","Code","Conglomerate_Group","Price","Sec_Num","Pct_Retail_ID","Pct_Corp_CP","Pct_Inst_Local","Pct_Total_Local","Pct_Total_Foreign","Market_Cap_Billion_IDR","Pct_Corp_Total_Local_Foreign","Delta_Retail_pp","Delta_Corp_pp","Flags"];
+  const h=["Date","Code","Conglomerate_Group","Price","Sec_Num","Pct_Retail_ID","Pct_Corp_CP","Pct_Inst_Local","Pct_Total_Local","Pct_Total_Foreign","Market_Cap_Billion_IDR","Pct_Corp_Total_Local_Foreign","Delta_Retail_pp","Delta_Corp_pp","Delta_Price_pct","Signal","Flags","Risk"];
   const f2=x=>x==null?"":x.toFixed(2);
-  const rows=S.rows.map(r=>[r.date,r.code,`"${r.group}"`,r.price,r.secNum,r.pctRetail.toFixed(2),r.pctCorp.toFixed(2),r.pctInstLocal.toFixed(2),r.pctLocal.toFixed(2),r.pctForeign.toFixed(2),r.mcapB.toFixed(2),(r.pctCorpTotal??r.pctCorp).toFixed(2),f2(r.dRetail),f2(r.dCorp),`"${r.flags.join("; ")}"`].join(","));
+  const rows=S.rows.map(r=>[r.date,r.code,`"${r.group}"`,r.price,r.secNum,r.pctRetail.toFixed(2),r.pctCorp.toFixed(2),r.pctInstLocal.toFixed(2),r.pctLocal.toFixed(2),r.pctForeign.toFixed(2),r.mcapB.toFixed(2),(r.pctCorpTotal??r.pctCorp).toFixed(2),f2(r.dRetail),f2(r.dCorp),f2(r.dPrice),`"${r.sig.label}"`,`"${r.flags.join("; ")}"`,`"${r.risk.join("; ")}"`].join(","));
   download(`KSEI_Screener_${S.date}.csv`,[h.join(","),...rows].join("\n"),"text/csv;charset=utf-8;");
   toast("File CSV berhasil diunduh.","success");
 }
@@ -457,7 +510,7 @@ function openTrend(code){S.trend=code.toUpperCase();$("trend-input").value=S.tre
 function renderTrend(code){
   const h=[...S.rec.values()].filter(r=>r.code===code).sort((a,b)=>a.timestamp-b.timestamp);
   [S.c1,S.c2].forEach(c=>c&&c.destroy());S.c1=S.c2=null;
-  $("t-code").textContent=code||"-";
+  $("t-code").textContent=code||"-";$("t-signal").textContent="";
   if(!h.length){
     $("t-group").textContent=code?"Data Tidak Ditemukan":"Non-Grup";
     $("t-meta").textContent=code?"Kode saham tidak ada di dataset.":"Pilih saham untuk melihat riwayat kepemilikan";
@@ -465,6 +518,11 @@ function renderTrend(code){
   }
   const last=h[h.length-1];
   $("t-group").textContent=S.t2g[code]||"Non-Grup / Independen";
+  {const prev=h.length>1?h[h.length-2]:null,x={...last,...calcDelta(last,prev,1),risk:riskTags(last),streak:streakOf(code,S.dates.indexOf(last.date))},sg=signal(x);
+   $("t-signal").className="text-xs font-semibold mt-1 "+sg.cls;
+   $("t-signal").textContent="Sinyal KSEI: "+sg.label+(x.risk.length?"  |  🔸 "+x.risk.join(" · "):"");}
+  if(S.rcCode!==code){S.rcCode=code;$("rc-entry").value=last.price;$("rc-stop").value=""}
+  calcRisk();
   $("t-meta").textContent=`${h.length} periode | Harga terakhir: Rp ${fmt(last.price)} | M.Cap: Rp ${fmt(last.mcapB)} Miliar | Cakupan KSEI: ${(last.coverage??100).toFixed(1)}%`;
   $("t-body").innerHTML=h.map((cur,i)=>{
     const prev=i?h[i-1]:null,gap=prev?Math.round((cur.timestamp-prev.timestamp)/864e5):0;
@@ -511,6 +569,26 @@ function drawCharts(h){
       y:{stacked:true,max:100,ticks:{...tick,callback:v=>v+"%"},grid:{color:gc}}}}});
 }
 
+/* ===== KALKULATOR POSISI & RISIKO ===== */
+function tick(p){return p<200?1:p<500?2:p<2000?5:p<5000?10:25}
+function restoreRisk(){try{const r=JSON.parse(localStorage.getItem("ksei_risk"));if(r){$("rc-cap").value=r.cap||"";$("rc-risk").value=r.risk||1}}catch(e){}}
+function calcRisk(){
+  const cap=+$("rc-cap").value,rk=+$("rc-risk").value,en=+$("rc-entry").value,sl=+$("rc-stop").value,rr=+$("rc-rr").value||2,out=$("rc-out");
+  const box=(l,v,c="")=>`<div class="bg-slate-50 dark:bg-slate-900/70 rounded-xl p-3 border border-slate-100 dark:border-slate-800"><span class="block text-[10px] text-slate-400">${l}</span><span class="font-mono font-bold ${c}">${v}</span></div>`;
+  if(!(cap>0&&rk>0&&en>0&&sl>0)){out.innerHTML=`<p class="col-span-full text-slate-400">Isi modal, harga masuk, dan stop loss untuk menghitung ukuran posisi.</p>`;return}
+  if(sl>=en){out.innerHTML=`<p class="col-span-full text-rose-500">Stop loss harus di bawah harga masuk.</p>`;return}
+  const rps=en-sl,riskRp=cap*rk/100,maxLots=Math.floor(cap/(en*100));
+  let lots=Math.floor(riskRp/rps/100);const capped=lots>maxLots;if(capped)lots=maxLots;
+  try{localStorage.setItem("ksei_risk",JSON.stringify({cap:$("rc-cap").value,risk:$("rc-risk").value}))}catch(e){}
+  if(lots<1){out.innerHTML=`<p class="col-span-full text-amber-500">Dengan risiko ${rk}% (Rp ${fmt(riskRp)}) dan jarak stop Rp ${fmt(rps)} per lembar, belum cukup untuk 1 lot. Perkecil jarak stop atau naikkan toleransi risiko.</p>`;return}
+  const pos=lots*100*en,loss=lots*100*rps,t0=en+rr*rps,tk=tick(t0),tp=Math.round(t0/tk)*tk,big=pos/cap>0.25;
+  out.innerHTML=box("Jumlah lot",fmt(lots)+" lot")+box("Nilai posisi",`Rp ${fmt(pos)} (${(pos/cap*100).toFixed(0)}% modal)`,big?"text-amber-500":"")
+    +box("Rugi jika kena stop",`Rp ${fmt(loss)} (${(loss/cap*100).toFixed(2)}%)`,"text-rose-500")
+    +box(`Target ${rr}R`,`${fmt(tp)} → +Rp ${fmt(lots*100*(tp-en))}`,"text-emerald-500")
+    +(capped?`<p class="col-span-full text-amber-500">Jumlah lot dibatasi oleh modal.</p>`:"")
+    +(big?`<p class="col-span-full text-amber-500">Satu posisi lebih dari 25% modal: pertimbangkan diversifikasi.</p>`:"");
+}
+
 /* ===== TAB 3: RINGKASAN GRUP (tertimbang M.Cap) ===== */
 function summary(){
   const box=$("conglo-grid");
@@ -553,12 +631,13 @@ function switchTab(id){
   $("snap-wrap").classList.toggle("hidden",id==="trends"||id==="settings");
 }
 const FILTER_IDS=["filter-search","filter-max-retail","filter-min-corp","filter-min-foreign","filter-min-price","filter-min-dcorp","filter-max-dretail"];
-const PRESETS={all:{},conglo:{"filter-min-corp":50,"filter-max-retail":15},lowretail:{"filter-max-retail":10},foreign:{"filter-min-foreign":50},nogocap:{"filter-min-price":51},accum:{"filter-min-dcorp":0.5,"filter-max-dretail":-0.5,hide:true}};
+const PRESETS={all:{},conglo:{"filter-min-corp":50,"filter-max-retail":15},lowretail:{"filter-max-retail":10},foreign:{"filter-min-foreign":50},nogocap:{"filter-min-price":51},accum:{"filter-signal":"ACC",hide:true},dis:{"filter-signal":"DIS",hide:true}};
 
 /* ===== INISIALISASI ===== */
 window.addEventListener("DOMContentLoaded",async()=>{
   try{if(localStorage.getItem("ksei_theme")==="light")document.documentElement.classList.remove("dark")}catch(e){}
-  loadGroups();fillGroupSelect();renderGroups();refresh();
+  restoreRisk();loadGroups();fillGroupSelect();renderGroups();refresh();
+  ["rc-cap","rc-risk","rc-entry","rc-stop","rc-rr"].forEach(id=>$(id).addEventListener("input",calcRisk));
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 
   $("theme-toggle").onclick=()=>{
@@ -603,12 +682,12 @@ window.addEventListener("DOMContentLoaded",async()=>{
   $("snap-date").onchange=e=>{S.date=e.target.value;applyFilters();summary()};
   document.querySelectorAll("#presets .btn").forEach(b=>b.onclick=()=>{
     document.querySelectorAll("#presets .btn").forEach(x=>x.classList.toggle("on",x===b));
-    FILTER_IDS.forEach(id=>$(id).value="");$("filter-hide-unreliable").checked=false;
+    FILTER_IDS.forEach(id=>$(id).value="");$("filter-signal").value="ALL";$("filter-hide-unreliable").checked=false;
     const p=PRESETS[b.dataset.preset];
     for(const[k,v]of Object.entries(p)){if(k==="hide")$("filter-hide-unreliable").checked=true;else $(k).value=v}
     applyFilters();
   });
-  [...FILTER_IDS,"filter-group","filter-lookback","filter-hide-unreliable"].forEach(id=>$(id).addEventListener("input",applyFilters));
+  [...FILTER_IDS,"filter-group","filter-lookback","filter-hide-unreliable","filter-signal"].forEach(id=>$(id).addEventListener("input",applyFilters));
   $("thead").onclick=e=>{
     const th=e.target.closest("[data-sort]");if(!th)return;
     const c=th.dataset.sort;
