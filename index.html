@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KSEI Screener & Conglomerate Ownership Tracker</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          },
+          colors: {
+            terminal: {
+              bg: '#0b0f19',
+              card: '#111827',
+              border: '#1f2937',
+              accent: '#3b82f6',
+              emerald: '#10b981',
+              amber: '#f59e0b',
+              rose: '#ef4444'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Chart.js via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* Custom Scrollbar untuk tampilan terminal keuangan yang rapi */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.3);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(156, 163, 175, 0.5);
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-terminal-bg dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200 selection:bg-blue-500 selection:text-white">
+
+  <!-- Toast Notification Container (Menggantikan alert()) -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-30 bg-white/90 dark:bg-terminal-card/90 backdrop-blur-md border-b border-slate-200 dark:border-terminal-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <!-- Brand / Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20 shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-bold text-base sm:text-lg tracking-tight leading-tight">KSEI Ownership & Conglo Tracker</h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Balance of Position Screener & Time-Series Analyzer</p>
+        </div>
+      </div>
+
+      <!-- Status & Actions -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Data Summary Badge -->
+        <div id="header-stats" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-medium">
+          <span class="w-2 h-2 rounded-full bg-slate-400" id="status-dot"></span>
+          <span id="status-text" class="text-slate-600 dark:text-slate-300">Belum ada data dimuat</span>
+        </div>
+
+        <!-- Theme Toggle Button -->
+        <button id="theme-toggle" title="Ganti Tema Terang/Gelap" class="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition">
+          <!-- Sun Icon (Dark Mode) -->
+          <svg id="icon-sun" class="w-5 h-5 hidden dark:block text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <!-- Moon Icon (Light Mode) -->
+          <svg id="icon-moon" class="w-5 h-5 block dark:hidden text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Multi-File Uploader & Data Control Panel -->
+    <section class="bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border p-4 sm:p-6 shadow-sm">
+      <div class="flex flex-col lg:flex-row gap-6 items-stretch">
+        
+        <!-- Drag & Drop Area -->
+        <div id="drop-zone" class="flex-1 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition bg-slate-50/50 dark:bg-slate-900/40 group">
+          <input type="file" id="file-input" multiple accept=".txt,.csv" class="hidden" />
+          <div class="w-11 h-11 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+          </div>
+          <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">
+            Drag & drop file KSEI (<span class="font-mono text-blue-600 dark:text-blue-400">.txt</span>) atau gabungan (<span class="font-mono text-emerald-600 dark:text-emerald-400">.csv</span>)
+          </p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md">
+            Bisa memilih <strong>banyak file bulanan sekaligus</strong>. Aplikasi otomatis menggabungkan & menghapus duplikat berdasarkan Tanggal + Kode Emiten.
+          </p>
+          <button type="button" id="btn-browse" class="mt-3 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium shadow-sm transition">
+            Pilih File dari Perangkat
+          </button>
+        </div>
+
+        <!-- Quick Actions & Loaded Dates Info -->
+        <div class="lg:w-80 flex flex-col justify-between gap-4 bg-slate-50 dark:bg-slate-900/60 rounded-xl p-4 border border-slate-200/80 dark:border-slate-800">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Status Dataset</span>
+              <span id="loaded-months-badge" class="px-2 py-0.5 text-xs font-mono rounded-md bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">0 Periode</span>
+            </div>
+            <div id="loaded-dates-list" class="text-xs text-slate-600 dark:text-slate-400 max-h-20 overflow-y-auto space-y-1 font-mono">
+              <p class="italic text-slate-400">Belum ada file diunggah.</p>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+            <button id="btn-load-demo" class="w-full py-2 px-3 rounded-lg bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-700 dark:text-emerald-400 border border-emerald-600/30 text-xs font-semibold flex items-center justify-center gap-2 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Muat Data Demo (Simulasi 5 Bulan)
+            </button>
+            <button id="btn-reset-data" class="w-full py-1.5 px-3 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium transition">
+              Reset / Hapus Semua Data
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-terminal-border pb-3">
+      <nav class="flex flex-wrap gap-1.5 bg-slate-200/70 dark:bg-slate-900 p-1 rounded-xl" role="tablist">
+        <button data-tab="screener" class="tab-btn active px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm">
+          1. Screener Kepemilikan
+        </button>
+        <button data-tab="trends" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+          2. Grafik Tren & Akumulasi
+        </button>
+        <button data-tab="conglomerates" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+          3. Ringkasan Grup Konglo
+        </button>
+        <button data-tab="settings" class="tab-btn px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5">
+          <span>⚙️ Kelola Grup Konglo</span>
+        </button>
+      </nav>
+
+      <!-- Global Snapshot Date Selector (Untuk Tab 1 & 3) -->
+      <div id="snapshot-date-wrapper" class="flex items-center gap-2">
+        <label for="snapshot-date-select" class="text-xs font-medium text-slate-500 dark:text-slate-400">Tanggal Snapshot:</label>
+        <select id="snapshot-date-select" class="px-3 py-1.5 rounded-lg text-xs font-mono font-semibold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">-- Pilih Tanggal --</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 1: SCREENER & FILTER KEPEMILIKAN                                  -->
+    <!-- ===================================================================== -->
+    <section id="tab-screener" class="tab-content space-y-5">
+      
+      <!-- Preset Filters Bar -->
+      <div class="bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border p-4 sm:p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Quick Preset Filter:</span>
+          <div class="flex flex-wrap gap-2" id="preset-buttons">
+            <button data-preset="all" class="preset-btn active px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white transition">
+              Semua Emiten
+            </button>
+            <button data-preset="conglo_pattern" class="preset-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+              🏢 Pola Saham Konglo (Corp &gt; 50% &amp; Ritel &lt; 15%)
+            </button>
+            <button data-preset="low_retail" class="preset-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+              💎 Ritel Rendah / Kering (Local ID &lt; 10%)
+            </button>
+            <button data-preset="foreign_dom" class="preset-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+              🌍 Dominasi Asing (&gt; 50%)
+            </button>
+            <button data-preset="non_gocap" class="preset-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+              📈 Bukan Gocap (Price &gt; 50)
+            </button>
+          </div>
+        </div>
+
+        <!-- Advanced Filter Controls Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <!-- Cari Kode Saham -->
+          <div>
+            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Cari Kode Saham</label>
+            <input type="text" id="filter-search" placeholder="Misal: BUMI, BREN..." class="w-full px-3 py-2 rounded-lg text-xs font-mono uppercase bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+
+          <!-- Filter Grup Konglomerasi -->
+          <div>
+            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Grup Konglomerasi</label>
+            <select id="filter-group" class="w-full px-3 py-2 rounded-lg text-xs bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="ALL">Semua Grup & Non-Grup</option>
+              <option value="ANY_CONGLO">Hanya Saham Grup Konglo</option>
+            </select>
+          </div>
+
+          <!-- Max % Ritel (Local ID) -->
+          <div>
+            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Max % Ritel (Local ID)</label>
+            <div class="relative">
+              <input type="number" id="filter-max-retail" min="0" max="100" step="1" placeholder="100" class="w-full px-3 py-2 rounded-lg text-xs font-mono bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <span class="absolute right-3 top-2 text-xs text-slate-400">%</span>
+            </div>
+          </div>
+
+          <!-- Min % Korporasi (Local CP) -->
+          <div>
+            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Min % Korporasi (CP)</label>
+            <div class="relative">
+              <input type="number" id="filter-min-corp" min="0" max="100" step="1" placeholder="0" class="w-full px-3 py-2 rounded-lg text-xs font-mono bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <span class="absolute right-3 top-2 text-xs text-slate-400">%</span>
+            </div>
+          </div>
+
+          <!-- Min % Asing -->
+          <div>
+            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Min % Total Asing</label>
+            <div class="relative">
+              <input type="number" id="filter-min-foreign" min="0" max="100" step="1" placeholder="0" class="w-full px-3 py-2 rounded-lg text-xs font-mono bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <span class="absolute right-3 top-2 text-xs text-slate-400">%</span>
+            </div>
+          </div>
+
+          <!-- Min Harga -->
+          <div>
+            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Harga Minimal (Rp)</label>
+            <input type="number" id="filter-min-price" min="0" step="10" placeholder="0" class="w-full px-3 py-2 rounded-lg text-xs font-mono bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Screener Results Table Card -->
+      <div class="bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border overflow-hidden shadow-sm">
+        <div class="p-4 border-b border-slate-200 dark:border-terminal-border flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <h2 class="font-semibold text-sm">Hasil Screener Kepemilikan</h2>
+            <span id="screener-count" class="px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">0 Emiten</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400 hidden sm:inline">Klik baris saham untuk melihat grafik tren historis</span>
+            <button id="btn-export-csv" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium flex items-center gap-1.5 transition shadow-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export CSV
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
+                <th class="py-3 px-4 cursor-pointer hover:text-blue-500" data-sort="code">Kode ↕</th>
+                <th class="py-3 px-4 cursor-pointer hover:text-blue-500" data-sort="group">Grup Konglo ↕</th>
+                <th class="py-3 px-4 text-right cursor-pointer hover:text-blue-500" data-sort="price">Harga ↕</th>
+                <th class="py-3 px-4 text-right cursor-pointer hover:text-blue-500" data-sort="secNum">Total Saham ↕</th>
+                <th class="py-3 px-4 text-right cursor-pointer hover:text-blue-500" data-sort="pctRetail">% Ritel (ID) ↕</th>
+                <th class="py-3 px-4 text-right cursor-pointer hover:text-blue-500" data-sort="pctCorp">% Korp (CP) ↕</th>
+                <th class="py-3 px-4 text-right cursor-pointer hover:text-blue-500" data-sort="pctInstLocal">% Inst. Lokal ↕</th>
+                <th class="py-3 px-4 text-right cursor-pointer hover:text-blue-500" data-sort="pctLocal">% Total Lokal ↕</th>
+                <th class="py-3 px-4 text-right cursor-pointer hover:text-blue-500" data-sort="pctForeign">% Total Asing ↕</th>
+                <th class="py-3 px-4 text-right cursor-pointer hover:text-blue-500" data-sort="mcapB">M.Cap (Miliar) ↕</th>
+              </tr>
+            </thead>
+            <tbody id="screener-tbody" class="divide-y divide-slate-100 dark:divide-slate-800/70 text-xs tabular-nums">
+              <tr>
+                <td colspan="10" class="py-12 text-center text-slate-400">
+                  Silakan upload file KSEI (.txt / .csv) atau klik <strong>"Muat Data Demo"</strong> di atas.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div class="p-3 border-t border-slate-200 dark:border-terminal-border flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <div id="pagination-info">Menampilkan 0 - 0 dari 0</div>
+          <div class="flex items-center gap-1.5">
+            <button id="prev-page" class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40">Sebelumnya</button>
+            <button id="next-page" class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40">Berikutnya</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 2: GRAFIK TREN HISTORIS & AKUMULASI/DISTRIBUSI PER SAHAM          -->
+    <!-- ===================================================================== -->
+    <section id="tab-trends" class="tab-content hidden space-y-6">
+      
+      <!-- Stock Selector & Quick Conglo Pills -->
+      <div class="bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border p-4 sm:p-5 space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex-1 max-w-md">
+            <label for="trend-stock-input" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Pilih / Ketik Kode Saham untuk Analisis Tren:</label>
+            <div class="flex gap-2">
+              <input type="text" id="trend-stock-input" list="stock-datalist" placeholder="Ketik kode saham (misal: BUMI)..." class="flex-1 px-3.5 py-2 rounded-xl text-sm font-mono font-bold uppercase bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <datalist id="stock-datalist"></datalist>
+              <button id="btn-analyze-trend" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition">
+                Tampilkan Grafik
+              </button>
+            </div>
+          </div>
+
+          <!-- Selected Stock Header Info -->
+          <div id="trend-stock-header" class="flex flex-wrap items-center gap-3 bg-slate-50 dark:bg-slate-900/70 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div>
+              <div class="flex items-center gap-2">
+                <span id="trend-title-code" class="text-lg font-mono font-bold text-blue-600 dark:text-blue-400">-</span>
+                <span id="trend-title-group" class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">Non-Grup</span>
+              </div>
+              <p id="trend-title-meta" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Pilih saham untuk melihat riwayat kepemilikan</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Pills Saham Grup Konglo -->
+        <div>
+          <span class="text-[11px] font-medium text-slate-400 block mb-1.5">Akses Cepat Saham Konglomerasi (Tersedia di Dataset):</span>
+          <div id="quick-conglo-pills" class="flex flex-wrap gap-1.5"></div>
+        </div>
+      </div>
+
+      <!-- Charts Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Chart 1: Multi-Axis Line Chart (% Ownership vs Price) -->
+        <div class="bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border p-4 sm:p-5 shadow-sm">
+          <div class="mb-3">
+            <h3 class="font-semibold text-sm">Tren Persentase Kepemilikan vs Harga Saham</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Memantau akumulasi korporasi/asing saat porsi ritel (Local ID) turun</p>
+          </div>
+          <div class="relative h-72 w-full">
+            <canvas id="trendLineChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 2: Stacked Bar Chart (Struktur Pemegang Saham) -->
+        <div class="bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border p-4 sm:p-5 shadow-sm">
+          <div class="mb-3">
+            <h3 class="font-semibold text-sm">Komposisi Struktur Pemegang Saham (%)</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Perbandingan proporsi Ritel, Korporasi, Institusi Lokal & Asing per bulan</p>
+          </div>
+          <div class="relative h-72 w-full">
+            <canvas id="trendStackedChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Net Change / Delta Table Antar-Bulan -->
+      <div class="bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border overflow-hidden shadow-sm">
+        <div class="p-4 border-b border-slate-200 dark:border-terminal-border">
+          <h3 class="font-semibold text-sm">Tabel Historis & Perubahan Antar-Bulan (Net Accumulation / Distribution)</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Angka dalam kurung menunjukkan perubahan persentase dibanding bulan sebelumnya (<span class="text-emerald-500 font-medium">+ Akumulasi</span> / <span class="text-rose-500 font-medium">- Distribusi</span>)</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <th class="py-3 px-4">Tanggal</th>
+                <th class="py-3 px-4 text-right">Harga</th>
+                <th class="py-3 px-4 text-right">Ritel (Local ID)</th>
+                <th class="py-3 px-4 text-right">Korporasi (Local CP)</th>
+                <th class="py-3 px-4 text-right">Institusi Lokal</th>
+                <th class="py-3 px-4 text-right">Total Asing</th>
+                <th class="py-3 px-4 text-right">Total Saham Tercatat</th>
+              </tr>
+            </thead>
+            <tbody id="trend-delta-tbody" class="divide-y divide-slate-100 dark:divide-slate-800/70 text-xs tabular-nums">
+              <tr>
+                <td colspan="7" class="py-8 text-center text-slate-400">Belum ada data saham yang dipilih.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 3: RINGKASAN PER GRUP KONGLOMERASI                                -->
+    <!-- ===================================================================== -->
+    <section id="tab-conglomerates" class="tab-content hidden space-y-6">
+      <div class="bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border p-4 sm:p-5">
+        <h2 class="font-semibold text-base">Agregat Kepemilikan Grup Konglomerasi</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Ringkasan rata-rata porsi Ritel, Korporasi, Asing, serta total kapitalisasi pasar per grup berdasarkan tanggal snapshot aktif.</p>
+      </div>
+
+      <!-- Cards Grid per Grup -->
+      <div id="conglo-summary-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div class="col-span-full py-12 text-center text-sm text-slate-400 bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border">
+          Muat data KSEI terlebih dahulu untuk melihat ringkasan per grup konglomerasi.
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- TAB 4: KELOLA GRUP KONGLOMERASI (CUSTOM + EXPORT/IMPORT JSON)         -->
+    <!-- ===================================================================== -->
+    <section id="tab-settings" class="tab-content hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Form Tambah / Edit Grup -->
+        <div class="bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border p-5 space-y-4 h-fit">
+          <div>
+            <h3 class="font-semibold text-base" id="form-group-title">Tambah / Edit Grup Konglomerasi</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Daftar grup disimpan otomatis di browser Anda (LocalStorage).</p>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Nama Grup Konglomerasi</label>
+              <input type="text" id="input-group-name" placeholder="Misal: Grup Prajogo Pangestu" class="w-full px-3 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Daftar Kode Emiten (Pisahkan dengan koma)</label>
+              <textarea id="input-group-tickers" rows="3" placeholder="BREN, TPIA, CUAN, PTRO, BRPT" class="w-full px-3 py-2 rounded-xl text-xs font-mono uppercase bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+
+            <div class="flex gap-2 pt-1">
+              <button id="btn-save-group" class="flex-1 py-2 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition">
+                Simpan Grup
+              </button>
+              <button id="btn-cancel-edit-group" class="hidden py-2 px-3 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs font-medium">
+                Batal
+              </button>
+            </div>
+          </div>
+
+          <!-- Backup / Sync JSON -->
+          <div class="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
+            <span class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Sinkronisasi & Backup (JSON)</span>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Export konfigurasi grup Anda untuk dipindahkan ke perangkat lain atau disimpan di repository GitHub.</p>
+            <div class="flex gap-2">
+              <button id="btn-export-groups" class="flex-1 py-2 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-medium transition">
+                Export JSON
+              </button>
+              <label class="flex-1 py-2 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-medium text-center cursor-pointer transition">
+                Import JSON
+                <input type="file" id="import-groups-input" accept=".json" class="hidden" />
+              </label>
+            </div>
+            <button id="btn-restore-default-groups" class="w-full py-1.5 text-[11px] text-amber-600 dark:text-amber-400 hover:underline">
+              Kembalikan Daftar Grup Default Bawaan
+            </button>
+          </div>
+        </div>
+
+        <!-- Daftar Grup Tersimpan -->
+        <div class="lg:col-span-2 bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-base">Daftar Grup Terdaftar</h3>
+            <span id="total-groups-badge" class="px-2.5 py-0.5 rounded-full text-xs font-mono bg-slate-100 dark:bg-slate-800">0 Grup</span>
+          </div>
+
+          <div id="groups-list-container" class="space-y-3"></div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200 dark:border-terminal-border py-4 px-4 text-center text-xs text-slate-500 dark:text-slate-400">
+    KSEI Ownership &amp; Conglomerate Tracker &bull; Diproses 100% secara lokal di browser Anda (Client-Side Privacy).
+  </footer>
+
+  <!-- ======================================================================= -->
+  <!-- JAVASCRIPT APPLICATION LOGIC                                            -->
+  <!-- ======================================================================= -->
+  <script>
+    /**
+     * 1. KONFIGURASI DEFAULT GRUP KONGLOMERASI INDONESIA
+     */
+    const DEFAULT_CONGLO_GROUPS = {
+      "Grup Prajogo Pangestu": ["BREN", "TPIA", "CUAN", "PTRO", "BRPT", "SSIA"],
+      "Grup Salim": ["ICBP", "INDF", "AMMN", "DNET", "META", "LSIP", "SIMP", "IMAS", "IMJS"],
+      "Grup Bakrie": ["BUMI", "BRMS", "ENRG", "DEWA", "VKTR", "UNSP", "ELTY", "BNBR"],
+      "Grup Djarum": ["BBCA", "TOWR", "BELI", "RANC", "SUPR"],
+      "Grup Sinarmas": ["DSSA", "GEMS", "SMMA", "BSDE", "INKP", "TKIM", "FREN", "DMAS"],
+      "Grup Boy Thohir / Adaro": ["ADRO", "ADMR", "ESSA", "MBMA", "MDKA", "NCKL", "GOTO", "TRIM"],
+      "Grup Aguan / Agung Sedayu": ["PANI", "CBDK"],
+      "Grup Lippo": ["LPKR", "LPCK", "MLPL", "MPPA", "SILO"],
+      "Grup MNC": ["BHIT", "MNCN", "BMTR", "KPIG", "BCAP", "IATA"]
+    };
+
+    const STORAGE_KEY_GROUPS = "ksei_tracker_conglo_groups_v1";
+
+    /**
+     * 2. STATE APLIKASI GLOBAL
+     */
+    let state = {
+      // Map dengan key: `${date}|${code}` untuk deduplikasi otomatis
+      recordsMap: new Map(),
+      // Daftar tanggal unik yang sudah diurutkan kronologis
+      sortedDates: [],
+      // Tanggal aktif yang dipilih di dropdown Screener & Ringkasan Grup
+      selectedDate: "",
+      // Grup konglomerasi aktif
+      congloGroups: {},
+      // Reverse lookup map: ticker -> groupName
+      tickerToGroup: {},
+      // Konfigurasi sorting tabel screener
+      sortCol: "mcapB",
+      sortAsc: false,
+      // Pagination screener
+      currentPage: 1,
+      pageSize: 50,
+      // Hasil filter terakhir (untuk export CSV)
+      filteredSnapshot: [],
+      // Saham yang sedang dilihat di Tab Tren
+      selectedTrendStock: "BUMI",
+      // Instance Chart.js
+      lineChartInstance: null,
+      stackedChartInstance: null
+    };
+
+    /**
+     * 3. UTILITAS UMUM & NOTIFIKASI TOAST
+     */
+    function showToast(message, type = "info") {
+      const container = document.getElementById("toast-container");
+      const toast = document.createElement("div");
+      
+      const colors = {
+        success: "bg-emerald-600 text-white border-emerald-500",
+        error: "bg-rose-600 text-white border-rose-500",
+        info: "bg-slate-800 dark:bg-slate-700 text-white border-slate-600"
+      };
+
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg border text-xs font-medium flex items-center justify-between gap-3 transform transition-all duration-300 translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+      toast.innerHTML = `<span>${message}</span>`;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove("translate-y-2", "opacity-0");
+      });
+
+      setTimeout(() => {
+        toast.classList.add("opacity-0", "translate-y-2");
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    function formatNumber(num) {
+      if (num === null || num === undefined || isNaN(num)) return "0";
+      return Math.round(num).toLocaleString("id-ID");
+    }
+
+    function formatPct(num) {
+      if (num === null || num === undefined || isNaN(num)) return "0.00%";
+      return num.toFixed(2) + "%";
+    }
+
+    // Konversi string tanggal KSEI (misal "30-OCT-2026" atau "2026-10-30") ke timestamp untuk sorting akurat
+    function parseKseiDateToTimestamp(dateStr) {
+      if (!dateStr) return 0;
+      const clean = dateStr.trim().toUpperCase();
+      const months = {
+        JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+        JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11
+      };
+      // Format DD-MMM-YYYY (standar KSEI)
+      const parts = clean.split("-");
+      if (parts.length === 3 && months[parts[1]] !== undefined) {
+        const day = parseInt(parts[0], 10);
+        const month = months[parts[1]];
+        const year = parseInt(parts[2], 10);
+        return new Date(year, month, day).getTime();
+      }
+      const parsed = Date.parse(clean);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+
+    /**
+     * 4. MANAJEMEN GRUP KONGLOMERASI (LOCALSTORAGE)
+     */
+    function loadCongloGroups() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_GROUPS);
+        if (saved) {
+          state.congloGroups = JSON.parse(saved);
+        } else {
+          state.congloGroups = JSON.parse(JSON.stringify(DEFAULT_CONGLO_GROUPS));
+          saveCongloGroups();
+        }
+      } catch (e) {
+        state.congloGroups = JSON.parse(JSON.stringify(DEFAULT_CONGLO_GROUPS));
+      }
+      rebuildTickerToGroupMap();
+    }
+
+    function saveCongloGroups() {
+      try {
+        localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(state.congloGroups));
+      } catch (e) {
+        console.warn("Gagal menyimpan ke localStorage:", e);
+      }
+      rebuildTickerToGroupMap();
+      populateGroupFilterDropdown();
+      renderManageGroupsUI();
+      if (state.recordsMap.size > 0) {
+        applyScreenerFilters();
+        renderCongloSummary();
+        renderQuickCongloPills();
+      }
+    }
+
+    function rebuildTickerToGroupMap() {
+      state.tickerToGroup = {};
+      for (const [groupName, tickers] of Object.entries(state.congloGroups)) {
+        tickers.forEach(ticker => {
+          state.tickerToGroup[ticker.toUpperCase().trim()] = groupName;
+        });
+      }
+    }
+
+    /**
+     * 5. PARSER MULTI-FORMAT (.TXT KSEI PIPE-DELIMITED & .CSV GABUNGAN)
+     */
+    function parseCSVLine(line, delimiter) {
+      // Menangani CSV standar maupun yang memiliki tanda kutip
+      if (delimiter === "|") {
+        return line.split("|").map(s => s.trim());
+      }
+      const result = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === delimiter && !inQuotes) {
+          result.push(current.trim());
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    }
+
+    function processRawFileContent(content, fileName) {
+      const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
+      if (lines.length < 2) return 0;
+
+      // Deteksi delimiter otomatis dari baris header
+      const headerLine = lines[0];
+      const delimiter = headerLine.includes("|") ? "|" : ",";
+      
+      let addedCount = 0;
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i], delimiter);
+        // Format standar KSEI memiliki minimal 25 kolom (index 0 s/d 24)
+        if (cols.length < 25) continue;
+
+        const date = cols[0].toUpperCase();
+        const code = cols[1].toUpperCase();
+        const type = cols[2].toUpperCase();
+
+        // Filter hanya saham (EQUITY) jika ada kolom Type, atau lewati baris kosong
+        if (!date || !code || code === "CODE") continue;
+        if (type && type !== "EQUITY" && type !== "") continue;
+
+        const secNum = parseFloat(cols[3]) || 0;
+        const price = parseFloat(cols[4]) || 0;
+        if (secNum <= 0) continue;
+
+        // Kepemilikan Lokal (index 5 - 14)
+        const localIS = parseFloat(cols[5]) || 0;  // Asuransi
+        const localCP = parseFloat(cols[6]) || 0;  // Korporasi
+        const localPF = parseFloat(cols[7]) || 0;  // Dana Pensiun
+        const localIB = parseFloat(cols[8]) || 0;  // Bank
+        const localID = parseFloat(cols[9]) || 0;  // Individu / Ritel
+        const localMF = parseFloat(cols[10]) || 0; // Reksadana
+        const localSC = parseFloat(cols[11]) || 0; // Sekuritas
+        const localFD = parseFloat(cols[12]) || 0; // Yayasan
+        const localOT = parseFloat(cols[13]) || 0; // Lainnya
+        const localTotal = parseFloat(cols[14]) || (localIS + localCP + localPF + localIB + localID + localMF + localSC + localFD + localOT);
+
+        // Kepemilikan Asing (index 15 - 24)
+        const foreignIS = parseFloat(cols[15]) || 0;
+        const foreignCP = parseFloat(cols[16]) || 0;
+        const foreignPF = parseFloat(cols[17]) || 0;
+        const foreignIB = parseFloat(cols[18]) || 0;
+        const foreignID = parseFloat(cols[19]) || 0;
+        const foreignMF = parseFloat(cols[20]) || 0;
+        const foreignSC = parseFloat(cols[21]) || 0;
+        const foreignFD = parseFloat(cols[22]) || 0;
+        const foreignOT = parseFloat(cols[23]) || 0;
+        const foreignTotal = parseFloat(cols[24]) || (foreignIS + foreignCP + foreignPF + foreignIB + foreignID + foreignMF + foreignSC + foreignFD + foreignOT);
+
+        // Kalkulasi Persentase & Metrik Turunan
+        const instLocalShares = localMF + localIS + localPF + localIB;
+        const pctRetail = (localID / secNum) * 100;
+        const pctCorp = (localCP / secNum) * 100;
+        const pctInstLocal = (instLocalShares / secNum) * 100;
+        const pctLocal = (localTotal / secNum) * 100;
+        const pctForeign = (foreignTotal / secNum) * 100;
+        const mcapB = (secNum * price) / 1e9; // Dalam Miliar Rupiah
+
+        const record = {
+          date,
+          timestamp: parseKseiDateToTimestamp(date),
+          code,
+          secNum,
+          price,
+          localID,
+          localCP,
+          instLocalShares,
+          localTotal,
+          foreignTotal,
+          pctRetail,
+          pctCorp,
+          pctInstLocal,
+          pctLocal,
+          pctForeign,
+          mcapB
+        };
+
+        // Deduplikasi otomatis berdasarkan Date + Code
+        const key = `${date}|${code}`;
+        state.recordsMap.set(key, record);
+        addedCount++;
+      }
+
+      return addedCount;
+    }
+
+    async function handleFilesUpload(fileList) {
+      if (!fileList || fileList.length === 0) return;
+      let totalRows = 0;
+
+      for (const file of fileList) {
+        try {
+          const text = await file.text();
+          const count = processRawFileContent(text, file.name);
+          totalRows += count;
+        } catch (err) {
+          showToast(`Gagal membaca file ${file.name}`, "error");
+        }
+      }
+
+      if (totalRows > 0) {
+        refreshDatasetState();
+        showToast(`Berhasil memuat ${totalRows.toLocaleString("id-ID")} baris data dari ${fileList.length} file!`, "success");
+      } else {
+        showToast("Format file tidak dikenali atau tidak ada data EQUITY valid.", "error");
+      }
+    }
+
+    /**
+     * 6. SINKRONISASI UI SETELAH DATA MASUK
+     */
+    function refreshDatasetState() {
+      // Ambil semua tanggal unik & urutkan dari terlama ke terbaru
+      const dateMap = new Map();
+      state.recordsMap.forEach(rec => {
+        if (!dateMap.has(rec.date)) {
+          dateMap.set(rec.date, rec.timestamp);
+        }
+      });
+
+      state.sortedDates = Array.from(dateMap.entries())
+        .sort((a, b) => a[1] - b[1])
+        .map(entry => entry[0]);
+
+      // Update Header Status
+      const statusDot = document.getElementById("status-dot");
+      const statusText = document.getElementById("status-text");
+      const loadedMonthsBadge = document.getElementById("loaded-months-badge");
+      const loadedDatesList = document.getElementById("loaded-dates-list");
+
+      if (state.sortedDates.length > 0) {
+        statusDot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+        statusText.textContent = `${state.recordsMap.size.toLocaleString("id-ID")} Baris Data (${state.sortedDates.length} Periode)`;
+        loadedMonthsBadge.textContent = `${state.sortedDates.length} Periode`;
+        
+        loadedDatesList.innerHTML = state.sortedDates.map(d => {
+          const count = Array.from(state.recordsMap.values()).filter(r => r.date === d).length;
+          return `<div class="flex justify-between py-0.5 border-b border-slate-200/50 dark:border-slate-800/50">
+            <span class="text-slate-700 dark:text-slate-300">${d}</span>
+            <span class="text-slate-400">${count} emiten</span>
+          </div>`;
+        }).join("");
+
+        // Populate dropdown tanggal (urut terbaru di atas)
+        const dateSelect = document.getElementById("snapshot-date-select");
+        const reversedDates = [...state.sortedDates].reverse();
+        dateSelect.innerHTML = reversedDates.map(d => `<option value="${d}">${d}</option>`).join("");
+        
+        if (!state.selectedDate || !state.sortedDates.includes(state.selectedDate)) {
+          state.selectedDate = reversedDates[0];
+        }
+        dateSelect.value = state.selectedDate;
+      } else {
+        statusDot.className = "w-2 h-2 rounded-full bg-slate-400";
+        statusText.textContent = "Belum ada data dimuat";
+        loadedMonthsBadge.textContent = "0 Periode";
+        loadedDatesList.innerHTML = `<p class="italic text-slate-400">Belum ada file diunggah.</p>`;
+        document.getElementById("snapshot-date-select").innerHTML = `<option value="">-- Pilih Tanggal --</option>`;
+        state.selectedDate = "";
+      }
+
+      populateStockDatalist();
+      renderQuickCongloPills();
+      applyScreenerFilters();
+      renderCongloSummary();
+      
+      // Auto-select saham pertama yang tersedia untuk Tab Tren jika BUMI tidak ada
+      const uniqueCodes = getUniqueCodes();
+      if (uniqueCodes.length > 0) {
+        if (!uniqueCodes.includes(state.selectedTrendStock)) {
+          state.selectedTrendStock = uniqueCodes.includes("BUMI") ? "BUMI" : uniqueCodes[0];
+        }
+        document.getElementById("trend-stock-input").value = state.selectedTrendStock;
+        renderTrendAnalysis(state.selectedTrendStock);
+      }
+    }
+
+    function getUniqueCodes() {
+      const codes = new Set();
+      state.recordsMap.forEach(r => codes.add(r.code));
+      return Array.from(codes).sort();
+    }
+
+    /**
+     * 7. GENERATOR DATA DEMO SIMULASI MULTI-BULAN (5 PERIODE)
+     */
+    function loadDemoData() {
+      state.recordsMap.clear();
+      const demoDates = ["30-JUN-2026", "31-JUL-2026", "31-AUG-2026", "30-SEP-2026", "30-OCT-2026"];
+      
+      // Simulasi realistis berbagai saham konglomerasi & non-konglo
+      const demoStocks = [
+        // BUMI: Simulasi akumulasi korporasi & asing, ritel terus berkurang, harga naik
+        { code: "BUMI", secNum: 371320000000, prices: [112, 124, 138, 156, 178], retailPcts: [24.5, 21.8, 18.4, 15.1, 12.3], corpPcts: [48.0, 50.2, 52.5, 54.8, 56.9], foreignPcts: [21.5, 22.0, 23.1, 24.1, 24.8] },
+        // BREN: Ritel sangat kering (< 4%), korporasi & asing sangat dominan
+        { code: "BREN", secNum: 133785000000, prices: [6800, 7150, 7400, 7900, 8250], retailPcts: [3.8, 3.6, 3.4, 3.2, 3.1], corpPcts: [65.2, 65.4, 65.5, 65.7, 65.8], foreignPcts: [27.0, 27.0, 27.1, 27.1, 27.1] },
+        // PANI: Grup Aguan, ritel rendah, korporasi > 80%
+        { code: "PANI", secNum: 16883000000, prices: [11200, 12500, 13800, 14900, 15600], retailPcts: [6.4, 6.1, 5.8, 5.5, 5.2], corpPcts: [82.1, 82.4, 82.6, 82.9, 83.1], foreignPcts: [8.5, 8.5, 8.6, 8.6, 8.7] },
+        // BBCA: Grup Djarum, dominasi asing besar
+        { code: "BBCA", secNum: 123275000000, prices: [9850, 10100, 10250, 10400, 10550], retailPcts: [7.2, 7.1, 7.0, 6.9, 6.8], corpPcts: [55.1, 55.1, 55.1, 55.1, 55.1], foreignPcts: [33.5, 33.7, 33.9, 34.1, 34.3] },
+        // AMMN: Grup Salim, ritel tipis
+        { code: "AMMN", secNum: 72518000000, prices: [9200, 9600, 9900, 10150, 10400], retailPcts: [4.9, 4.7, 4.5, 4.3, 4.2], corpPcts: [71.0, 71.2, 71.4, 71.5, 71.6], foreignPcts: [19.1, 19.1, 19.1, 19.2, 19.2] },
+        // ADRO: Grup Boy Thohir
+        { code: "ADRO", secNum: 30758000000, prices: [2850, 3100, 3450, 3680, 3820], retailPcts: [14.8, 13.9, 13.1, 12.4, 11.8], corpPcts: [53.2, 53.6, 54.0, 54.3, 54.6], foreignPcts: [24.0, 24.5, 24.9, 25.3, 25.6] },
+        // DSSA: Grup Sinarmas
+        { code: "DSSA", secNum: 7705523200, prices: [28500, 31000, 34200, 36500, 39000], retailPcts: [2.5, 2.4, 2.3, 2.2, 2.1], corpPcts: [78.5, 78.6, 78.7, 78.8, 78.9], foreignPcts: [15.0, 15.0, 15.0, 15.0, 15.0] },
+        // BRMS: Grup Bakrie
+        { code: "BRMS", secNum: 141784000000, prices: [165, 190, 240, 310, 356], retailPcts: [26.0, 23.5, 20.1, 17.5, 14.8], corpPcts: [34.0, 35.5, 37.9, 39.5, 41.2], foreignPcts: [33.0, 34.0, 35.0, 36.0, 37.0] },
+        // Saham Ritel Tinggi (Contoh pembanding non-konglo / distribusi)
+        { code: "GOTO", secNum: 1191300000000, prices: [54, 52, 56, 62, 66], retailPcts: [31.5, 32.1, 31.8, 30.9, 30.2], corpPcts: [14.2, 14.0, 14.1, 14.3, 14.5], foreignPcts: [46.3, 45.9, 46.1, 46.8, 47.3] },
+        { code: "ANTM", secNum: 24030000000, prices: [1320, 1380, 1450, 1510, 1580], retailPcts: [22.4, 21.8, 21.0, 20.2, 19.5], corpPcts: [65.0, 65.0, 65.0, 65.0, 65.0], foreignPcts: [7.6, 8.2, 9.0, 9.8, 10.5] }
+      ];
+
+      demoDates.forEach((date, idx) => {
+        demoStocks.forEach(s => {
+          const secNum = s.secNum;
+          const price = s.prices[idx];
+          const pctRetail = s.retailPcts[idx];
+          const pctCorp = s.corpPcts[idx];
+          const pctForeign = s.foreignPcts[idx];
+          const pctInstLocal = Math.max(0, 100 - pctRetail - pctCorp - pctForeign);
+          const pctLocal = pctRetail + pctCorp + pctInstLocal;
+
+          const localID = Math.round((pctRetail / 100) * secNum);
+          const localCP = Math.round((pctCorp / 100) * secNum);
+          const instLocalShares = Math.round((pctInstLocal / 100) * secNum);
+          const localTotal = localID + localCP + instLocalShares;
+          const foreignTotal = secNum - localTotal;
+
+          const record = {
+            date,
+            timestamp: parseKseiDateToTimestamp(date),
+            code: s.code,
+            secNum,
+            price,
+            localID,
+            localCP,
+            instLocalShares,
+            localTotal,
+            foreignTotal,
+            pctRetail,
+            pctCorp,
+            pctInstLocal,
+            pctLocal,
+            pctForeign,
+            mcapB: (secNum * price) / 1e9
+          };
+          state.recordsMap.set(`${date}|${s.code}`, record);
+        });
+      });
+
+      refreshDatasetState();
+      showToast("Data Demo 5 Bulan (Jun–Okt 2026) berhasil dimuat!", "success");
+    }
+
+    /**
+     * 8. LOGIKA TAB 1: SCREENER & FILTERING
+     */
+    function populateGroupFilterDropdown() {
+      const select = document.getElementById("filter-group");
+      const currentVal = select.value;
+      select.innerHTML = `
+        <option value="ALL">Semua Grup & Non-Grup</option>
+        <option value="ANY_CONGLO">Hanya Saham Grup Konglo</option>
+      `;
+      Object.keys(state.congloGroups).sort().forEach(groupName => {
+        const opt = document.createElement("option");
+        opt.value = groupName;
+        opt.textContent = groupName;
+        select.appendChild(opt);
+      });
+      if (Array.from(select.options).some(o => o.value === currentVal)) {
+        select.value = currentVal;
+      }
+    }
+
+    function applyScreenerFilters() {
+      if (!state.selectedDate || state.recordsMap.size === 0) {
+        state.filteredSnapshot = [];
+        renderScreenerTable();
+        return;
+      }
+
+      const searchQ = document.getElementById("filter-search").value.trim().toUpperCase();
+      const groupFilter = document.getElementById("filter-group").value;
+      const maxRetail = parseFloat(document.getElementById("filter-max-retail").value);
+      const minCorp = parseFloat(document.getElementById("filter-min-corp").value);
+      const minForeign = parseFloat(document.getElementById("filter-min-foreign").value);
+      const minPrice = parseFloat(document.getElementById("filter-min-price").value);
+
+      // Ambil snapshot pada tanggal terpilih
+      let rows = [];
+      state.recordsMap.forEach(rec => {
+        if (rec.date === state.selectedDate) {
+          const groupName = state.tickerToGroup[rec.code] || "";
+          rows.push({ ...rec, group: groupName });
+        }
+      });
+
+      // Terapkan filter
+      rows = rows.filter(r => {
+        if (searchQ && !r.code.includes(searchQ)) return false;
+        if (groupFilter === "ANY_CONGLO" && !r.group) return false;
+        if (groupFilter !== "ALL" && groupFilter !== "ANY_CONGLO" && r.group !== groupFilter) return false;
+        if (!isNaN(maxRetail) && r.pctRetail > maxRetail) return false;
+        if (!isNaN(minCorp) && r.pctCorp < minCorp) return false;
+        if (!isNaN(minForeign) && r.pctForeign < minForeign) return false;
+        if (!isNaN(minPrice) && r.price < minPrice) return false;
+        return true;
+      });
+
+      // Sorting
+      rows.sort((a, b) => {
+        let valA = a[state.sortCol];
+        let valB = b[state.sortCol];
+        if (typeof valA === "string") {
+          return state.sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        return state.sortAsc ? valA - valB : valB - valA;
+      });
+
+      state.filteredSnapshot = rows;
+      state.currentPage = 1;
+      renderScreenerTable();
+    }
+
+    function renderScreenerTable() {
+      const tbody = document.getElementById("screener-tbody");
+      const countBadge = document.getElementById("screener-count");
+      const total = state.filteredSnapshot.length;
+      countBadge.textContent = `${total.toLocaleString("id-ID")} Emiten`;
+
+      if (total === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="py-10 text-center text-slate-400">Tidak ada saham yang sesuai dengan kriteria filter pada tanggal ini.</td></tr>`;
+        document.getElementById("pagination-info").textContent = "Menampilkan 0 - 0 dari 0";
+        document.getElementById("prev-page").disabled = true;
+        document.getElementById("next-page").disabled = true;
+        return;
+      }
+
+      const startIdx = (state.currentPage - 1) * state.pageSize;
+      const endIdx = Math.min(startIdx + state.pageSize, total);
+      const pageItems = state.filteredSnapshot.slice(startIdx, endIdx);
+
+      tbody.innerHTML = pageItems.map(r => {
+        const groupBadge = r.group
+          ? `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">${r.group}</span>`
+          : `<span class="text-slate-400 text-[11px]">-</span>`;
+
+        // Highlight warna ritel rendah vs tinggi
+        const retailColor = r.pctRetail < 10
+          ? "text-emerald-600 dark:text-emerald-400 font-semibold"
+          : r.pctRetail > 25
+            ? "text-rose-600 dark:text-rose-400"
+            : "text-slate-700 dark:text-slate-300";
+
+        return `
+          <tr onclick="openStockTrend('${r.code}')" class="hover:bg-blue-50/60 dark:hover:bg-slate-800/60 cursor-pointer transition">
+            <td class="py-3 px-4 font-mono font-bold text-blue-600 dark:text-blue-400">${r.code}</td>
+            <td class="py-3 px-4">${groupBadge}</td>
+            <td class="py-3 px-4 text-right font-mono">${formatNumber(r.price)}</td>
+            <td class="py-3 px-4 text-right font-mono text-slate-500 dark:text-slate-400">${formatNumber(r.secNum)}</td>
+            <td class="py-3 px-4 text-right font-mono ${retailColor}">${formatPct(r.pctRetail)}</td>
+            <td class="py-3 px-4 text-right font-mono font-medium">${formatPct(r.pctCorp)}</td>
+            <td class="py-3 px-4 text-right font-mono text-slate-600 dark:text-slate-400">${formatPct(r.pctInstLocal)}</td>
+            <td class="py-3 px-4 text-right font-mono">${formatPct(r.pctLocal)}</td>
+            <td class="py-3 px-4 text-right font-mono font-medium text-amber-600 dark:text-amber-400">${formatPct(r.pctForeign)}</td>
+            <td class="py-3 px-4 text-right font-mono font-semibold">${formatNumber(r.mcapB)}</td>
+          </tr>
+        `;
+      }).join("");
+
+      document.getElementById("pagination-info").textContent = `Menampilkan ${startIdx + 1} - ${endIdx} dari ${total.toLocaleString("id-ID")}`;
+      document.getElementById("prev-page").disabled = state.currentPage <= 1;
+      document.getElementById("next-page").disabled = endIdx >= total;
+    }
+
+    function exportFilteredToCSV() {
+      if (state.filteredSnapshot.length === 0) {
+        showToast("Tidak ada data untuk di-export.", "error");
+        return;
+      }
+
+      const headers = [
+        "Date", "Code", "Conglomerate_Group", "Price", "Sec_Num",
+        "Pct_Retail_ID", "Pct_Corp_CP", "Pct_Inst_Local", "Pct_Total_Local", "Pct_Total_Foreign", "Market_Cap_Billion_IDR"
+      ];
+
+      const csvRows = [headers.join(",")];
+      state.filteredSnapshot.forEach(r => {
+        csvRows.push([
+          r.date,
+          r.code,
+          `"${r.group || ""}"`,
+          r.price,
+          r.secNum,
+          r.pctRetail.toFixed(2),
+          r.pctCorp.toFixed(2),
+          r.pctInstLocal.toFixed(2),
+          r.pctLocal.toFixed(2),
+          r.pctForeign.toFixed(2),
+          r.mcapB.toFixed(2)
+        ].join(","));
+      });
+
+      const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `KSEI_Screener_${state.selectedDate || "Export"}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("File CSV berhasil diunduh!", "success");
+    }
+
+    /**
+     * 9. LOGIKA TAB 2: GRAFIK TREN HISTORIS & AKUMULASI/DISTRIBUSI
+     */
+    function populateStockDatalist() {
+      const datalist = document.getElementById("stock-datalist");
+      const codes = getUniqueCodes();
+      datalist.innerHTML = codes.map(c => `<option value="${c}">`).join("");
+    }
+
+    function renderQuickCongloPills() {
+      const container = document.getElementById("quick-conglo-pills");
+      const availableCodes = new Set(getUniqueCodes());
+      
+      let pillsHtml = "";
+      for (const [groupName, tickers] of Object.entries(state.congloGroups)) {
+        tickers.forEach(ticker => {
+          if (availableCodes.has(ticker)) {
+            pillsHtml += `
+              <button onclick="openStockTrend('${ticker}')" class="px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold bg-slate-100 hover:bg-blue-600 hover:text-white dark:bg-slate-800 dark:hover:bg-blue-600 text-slate-700 dark:text-slate-300 transition">
+                ${ticker} <span class="opacity-60 font-sans font-normal">(${groupName.replace("Grup ", "")})</span>
+              </button>
+            `;
+          }
+        });
+      }
+
+      container.innerHTML = pillsHtml || `<span class="text-xs italic text-slate-400">Muat data KSEI untuk memunculkan pintasan saham konglomerasi.</span>`;
+    }
+
+    function openStockTrend(code) {
+      const cleanCode = code.trim().toUpperCase();
+      state.selectedTrendStock = cleanCode;
+      document.getElementById("trend-stock-input").value = cleanCode;
+      switchTab("trends");
+      renderTrendAnalysis(cleanCode);
+    }
+
+    function renderTrendAnalysis(code) {
+      const history = [];
+      state.recordsMap.forEach(rec => {
+        if (rec.code === code) history.push(rec);
+      });
+
+      // Urutkan kronologis dari bulan terlama ke terbaru
+      history.sort((a, b) => a.timestamp - b.timestamp);
+
+      const titleCode = document.getElementById("trend-title-code");
+      const titleGroup = document.getElementById("trend-title-group");
+      const titleMeta = document.getElementById("trend-title-meta");
+      const deltaTbody = document.getElementById("trend-delta-tbody");
+
+      if (history.length === 0) {
+        titleCode.textContent = code || "-";
+        titleGroup.textContent = "Data Tidak Ditemukan";
+        titleMeta.textContent = "Kode saham tidak ada di dataset yang diunggah.";
+        deltaTbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Tidak ada riwayat data untuk kode <strong>${code}</strong>.</td></tr>`;
+        return;
+      }
+
+      const latest = history[history.length - 1];
+      const groupName = state.tickerToGroup[code] || "Non-Grup / Independen";
+
+      titleCode.textContent = code;
+      titleGroup.textContent = groupName;
+      titleMeta.textContent = `Tersedia ${history.length} periode data | Harga Terakhir: Rp ${formatNumber(latest.price)} | Market Cap: Rp ${formatNumber(latest.mcapB)} Miliar`;
+
+      // Render Tabel Delta Antar-Bulan
+      deltaTbody.innerHTML = history.map((curr, idx) => {
+        const prev = idx > 0 ? history[idx - 1] : null;
+        
+        const formatDelta = (currPct, prevPct) => {
+          if (!prev) return "";
+          const diff = currPct - prevPct;
+          if (Math.abs(diff) < 0.005) return `<span class="text-slate-400 text-[10px] ml-1">(0.00%)</span>`;
+          const sign = diff > 0 ? "+" : "";
+          const cls = diff > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
+          return `<span class="${cls} text-[10px] font-semibold ml-1">(${sign}${diff.toFixed(2)}%)</span>`;
+        };
+
+        return `
+          <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+            <td class="py-3 px-4 font-mono font-semibold">${curr.date}</td>
+            <td class="py-3 px-4 text-right font-mono font-bold text-blue-600 dark:text-blue-400">${formatNumber(curr.price)}</td>
+            <td class="py-3 px-4 text-right font-mono">
+              ${formatPct(curr.pctRetail)}${formatDelta(curr.pctRetail, prev?.pctRetail)}
+              <div class="text-[10px] text-slate-400">${formatNumber(curr.localID)} lbr</div>
+            </td>
+            <td class="py-3 px-4 text-right font-mono">
+              ${formatPct(curr.pctCorp)}${formatDelta(curr.pctCorp, prev?.pctCorp)}
+              <div class="text-[10px] text-slate-400">${formatNumber(curr.localCP)} lbr</div>
+            </td>
+            <td class="py-3 px-4 text-right font-mono">
+              ${formatPct(curr.pctInstLocal)}${formatDelta(curr.pctInstLocal, prev?.pctInstLocal)}
+            </td>
+            <td class="py-3 px-4 text-right font-mono">
+              ${formatPct(curr.pctForeign)}${formatDelta(curr.pctForeign, prev?.pctForeign)}
+              <div class="text-[10px] text-slate-400">${formatNumber(curr.foreignTotal)} lbr</div>
+            </td>
+            <td class="py-3 px-4 text-right font-mono text-slate-500">${formatNumber(curr.secNum)}</td>
+          </tr>
+        `;
+      }).join("");
+
+      // Render Chart.js
+      renderCharts(history);
+    }
+
+    function renderCharts(history) {
+      const isDark = document.documentElement.classList.contains("dark");
+      const textColor = isDark ? "#94a3b8" : "#475569";
+      const gridColor = isDark ? "rgba(51, 65, 85, 0.4)" : "rgba(226, 232, 240, 0.8)";
+
+      const labels = history.map(h => h.date);
+      const retailData = history.map(h => Number(h.pctRetail.toFixed(2)));
+      const corpData = history.map(h => Number(h.pctCorp.toFixed(2)));
+      const instLocalData = history.map(h => Number(h.pctInstLocal.toFixed(2)));
+      const foreignData = history.map(h => Number(h.pctForeign.toFixed(2)));
+      const priceData = history.map(h => h.price);
+
+      // 1. Multi-Axis Line Chart
+      const ctxLine = document.getElementById("trendLineChart").getContext("2d");
+      if (state.lineChartInstance) state.lineChartInstance.destroy();
+
+      state.lineChartInstance = new Chart(ctxLine, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "% Korporasi (Local CP)",
+              data: corpData,
+              borderColor: "#3b82f6",
+              backgroundColor: "rgba(59, 130, 246, 0.1)",
+              borderWidth: 2.5,
+              tension: 0.3,
+              yAxisID: "y"
+            },
+            {
+              label: "% Ritel (Local ID)",
+              data: retailData,
+              borderColor: "#ef4444",
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
+              borderWidth: 2.5,
+              tension: 0.3,
+              yAxisID: "y"
+            },
+            {
+              label: "% Total Asing",
+              data: foreignData,
+              borderColor: "#f59e0b",
+              backgroundColor: "rgba(245, 158, 11, 0.1)",
+              borderWidth: 2,
+              borderDash: [4, 4],
+              tension: 0.3,
+              yAxisID: "y"
+            },
+            {
+              label: "Harga Saham (Rp)",
+              data: priceData,
+              borderColor: "#10b981",
+              backgroundColor: "rgba(16, 185, 129, 0.15)",
+              borderWidth: 3,
+              pointRadius: 4,
+              tension: 0.2,
+              yAxisID: "y1"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { labels: { color: textColor, font: { size: 11 } } }
+          },
+          scales: {
+            x: { ticks: { color: textColor, font: { size: 10 } }, grid: { color: gridColor } },
+            y: {
+              type: "linear",
+              position: "left",
+              title: { display: true, text: "Kepemilikan (%)", color: textColor, font: { size: 10 } },
+              ticks: { color: textColor, font: { size: 10 } },
+              grid: { color: gridColor }
+            },
+            y1: {
+              type: "linear",
+              position: "right",
+              title: { display: true, text: "Harga (Rp)", color: "#10b981", font: { size: 10 } },
+              ticks: { color: "#10b981", font: { size: 10 } },
+              grid: { drawOnChartArea: false }
+            }
+          }
+        }
+      });
+
+      // 2. Stacked Bar Chart
+      const ctxBar = document.getElementById("trendStackedChart").getContext("2d");
+      if (state.stackedChartInstance) state.stackedChartInstance.destroy();
+
+      state.stackedChartInstance = new Chart(ctxBar, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            { label: "Korporasi (CP)", data: corpData, backgroundColor: "#3b82f6" },
+            { label: "Total Asing", data: foreignData, backgroundColor: "#f59e0b" },
+            { label: "Institusi Lokal", data: instLocalData, backgroundColor: "#8b5cf6" },
+            { label: "Ritel (Local ID)", data: retailData, backgroundColor: "#ef4444" }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: textColor, font: { size: 11 } } }
+          },
+          scales: {
+            x: { stacked: true, ticks: { color: textColor, font: { size: 10 } }, grid: { display: false } },
+            y: {
+              stacked: true,
+              max: 100,
+              ticks: { color: textColor, font: { size: 10 }, callback: v => v + "%" },
+              grid: { color: gridColor }
+            }
+          }
+        }
+      });
+    }
+
+    /**
+     * 10. LOGIKA TAB 3: RINGKASAN PER GRUP KONGLOMERASI
+     */
+    function renderCongloSummary() {
+      const container = document.getElementById("conglo-summary-grid");
+      if (!state.selectedDate || state.recordsMap.size === 0) {
+        container.innerHTML = `<div class="col-span-full py-12 text-center text-sm text-slate-400 bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border">Muat data KSEI terlebih dahulu untuk melihat ringkasan per grup konglomerasi.</div>`;
+        return;
+      }
+
+      // Ambil semua record di tanggal aktif
+      const snapshotMap = new Map();
+      state.recordsMap.forEach(rec => {
+        if (rec.date === state.selectedDate) snapshotMap.set(rec.code, rec);
+      });
+
+      const cardsHtml = Object.entries(state.congloGroups).map(([groupName, tickers]) => {
+        const matched = tickers.map(t => snapshotMap.get(t)).filter(Boolean);
+        
+        if (matched.length === 0) {
+          return `
+            <div class="bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border p-5 opacity-60">
+              <h3 class="font-bold text-sm">${groupName}</h3>
+              <p class="text-xs text-slate-400 mt-1">Tidak ada emiten grup ini yang ditemukan pada snapshot ${state.selectedDate}.</p>
+            </div>
+          `;
+        }
+
+        const avgRetail = matched.reduce((acc, r) => acc + r.pctRetail, 0) / matched.length;
+        const avgCorp = matched.reduce((acc, r) => acc + r.pctCorp, 0) / matched.length;
+        const avgForeign = matched.reduce((acc, r) => acc + r.pctForeign, 0) / matched.length;
+        const totalMcapB = matched.reduce((acc, r) => acc + r.mcapB, 0);
+
+        const tickerBadges = matched.map(m => `
+          <button onclick="openStockTrend('${m.code}')" class="px-2 py-0.5 rounded bg-slate-100 hover:bg-blue-600 hover:text-white dark:bg-slate-800 dark:hover:bg-blue-600 font-mono text-[11px] font-semibold transition">
+            ${m.code}
+          </button>
+        `).join("");
+
+        return `
+          <div class="bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border p-5 flex flex-col justify-between gap-4 shadow-sm hover:border-blue-500/50 transition">
+            <div>
+              <div class="flex items-start justify-between gap-2">
+                <h3 class="font-bold text-sm text-slate-900 dark:text-white">${groupName}</h3>
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-mono bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold">${matched.length}/${tickers.length} Emiten</span>
+              </div>
+              
+              <div class="mt-3 grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-900/70 p-3 rounded-xl border border-slate-100 dark:border-slate-800 text-center">
+                <div>
+                  <span class="block text-[10px] text-slate-400">Avg Ritel</span>
+                  <span class="font-mono text-xs font-bold ${avgRetail < 12 ? 'text-emerald-500' : 'text-rose-500'}">${avgRetail.toFixed(1)}%</span>
+                </div>
+                <div>
+                  <span class="block text-[10px] text-slate-400">Avg Korp</span>
+                  <span class="font-mono text-xs font-bold text-blue-500">${avgCorp.toFixed(1)}%</span>
+                </div>
+                <div>
+                  <span class="block text-[10px] text-slate-400">Avg Asing</span>
+                  <span class="font-mono text-xs font-bold text-amber-500">${avgForeign.toFixed(1)}%</span>
+                </div>
+              </div>
+
+              <div class="mt-3 flex items-center justify-between text-xs">
+                <span class="text-slate-500 dark:text-slate-400">Total Valuasi Grup:</span>
+                <span class="font-mono font-bold text-slate-800 dark:text-slate-100">Rp ${formatNumber(totalMcapB)} M</span>
+              </div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-1.5">
+              ${tickerBadges}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      container.innerHTML = cardsHtml;
+    }
+
+    /**
+     * 11. LOGIKA TAB 4: KELOLA GRUP KONGLOMERASI
+     */
+    let editingGroupOriginalName = null;
+
+    function renderManageGroupsUI() {
+      const container = document.getElementById("groups-list-container");
+      const entries = Object.entries(state.congloGroups);
+      document.getElementById("total-groups-badge").textContent = `${entries.length} Grup`;
+
+      container.innerHTML = entries.map(([name, tickers]) => `
+        <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h4 class="font-semibold text-xs sm:text-sm">${name}</h4>
+            <div class="flex flex-wrap gap-1 mt-1.5">
+              ${tickers.map(t => `<span class="px-2 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-[11px]">${t}</span>`).join("")}
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="startEditGroup('${name.replace(/'/g, "\\'")}')" class="px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-medium transition">
+              Edit
+            </button>
+            <button onclick="deleteGroup('${name.replace(/'/g, "\\'")}')" class="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium transition">
+              Hapus
+            </button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function startEditGroup(name) {
+      editingGroupOriginalName = name;
+      document.getElementById("form-group-title").textContent = "Edit Grup Konglomerasi";
+      document.getElementById("input-group-name").value = name;
+      document.getElementById("input-group-tickers").value = (state.congloGroups[name] || []).join(", ");
+      document.getElementById("btn-cancel-edit-group").classList.remove("hidden");
+    }
+
+    function cancelEditGroup() {
+      editingGroupOriginalName = null;
+      document.getElementById("form-group-title").textContent = "Tambah / Edit Grup Konglomerasi";
+      document.getElementById("input-group-name").value = "";
+      document.getElementById("input-group-tickers").value = "";
+      document.getElementById("btn-cancel-edit-group").classList.add("hidden");
+    }
+
+    function deleteGroup(name) {
+      delete state.congloGroups[name];
+      saveCongloGroups();
+      showToast(`Grup "${name}" berhasil dihapus.`, "info");
+    }
+
+    /**
+     * 12. NAVIGATION TABS & THEME TOGGLE
+     */
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        const isTarget = btn.dataset.tab === tabId;
+        if (isTarget) {
+          btn.classList.add("active", "bg-white", "dark:bg-slate-800", "text-blue-600", "dark:text-blue-400", "shadow-sm");
+          btn.classList.remove("text-slate-600", "dark:text-slate-400");
+        } else {
+          btn.classList.remove("active", "bg-white", "dark:bg-slate-800", "text-blue-600", "dark:text-blue-400", "shadow-sm");
+          btn.classList.add("text-slate-600", "dark:text-slate-400");
+        }
+      });
+
+      document.querySelectorAll(".tab-content").forEach(sec => {
+        sec.classList.toggle("hidden", sec.id !== `tab-${tabId}`);
+      });
+
+      // Tampilkan dropdown tanggal hanya di tab Screener dan Ringkasan Grup
+      const dateWrapper = document.getElementById("snapshot-date-wrapper");
+      dateWrapper.classList.toggle("hidden", tabId === "trends" || tabId === "settings");
+    }
+
+    /**
+     * 13. INISIALISASI EVENT LISTENERS SAAT HALAMAN DIMUAT
+     */
+    window.addEventListener("DOMContentLoaded", () => {
+      // Load Grup Konglo dari LocalStorage
+      loadCongloGroups();
+      populateGroupFilterDropdown();
+      renderManageGroupsUI();
+
+      // Theme Toggle
+      document.getElementById("theme-toggle").addEventListener("click", () => {
+        document.documentElement.classList.toggle("dark");
+        if (state.recordsMap.size > 0 && state.selectedTrendStock) {
+          renderTrendAnalysis(state.selectedTrendStock);
+        }
+      });
+
+      // File Uploader (Click & Drag/Drop)
+      const dropZone = document.getElementById("drop-zone");
+      const fileInput = document.getElementById("file-input");
+      document.getElementById("btn-browse").addEventListener("click", (e) => {
+        e.stopPropagation();
+        fileInput.click();
+      });
+      dropZone.addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", (e) => {
+        handleFilesUpload(e.target.files);
+        fileInput.value = "";
+      });
+
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("border-blue-500", "bg-blue-500/5");
+      });
+      dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("border-blue-500", "bg-blue-500/5");
+      });
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("border-blue-500", "bg-blue-500/5");
+        handleFilesUpload(e.dataTransfer.files);
+      });
+
+      // Demo & Reset Buttons
+      document.getElementById("btn-load-demo").addEventListener("click", loadDemoData);
+      document.getElementById("btn-reset-data").addEventListener("click", () => {
+        state.recordsMap.clear();
+        refreshDatasetState();
+        showToast("Semua data sesi telah dihapus.", "info");
+      });
+
+      // Tab Navigation
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+      });
+
+      // Snapshot Date Dropdown
+      document.getElementById("snapshot-date-select").addEventListener("change", (e) => {
+        state.selectedDate = e.target.value;
+        applyScreenerFilters();
+        renderCongloSummary();
+      });
+
+      // Preset Filter Buttons
+      document.querySelectorAll(".preset-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".preset-btn").forEach(b => {
+            b.classList.remove("active", "bg-blue-600", "text-white");
+            b.classList.add("bg-slate-100", "dark:bg-slate-800", "text-slate-700", "dark:text-slate-300");
+          });
+          btn.classList.add("active", "bg-blue-600", "text-white");
+          btn.classList.remove("bg-slate-100", "dark:bg-slate-800", "text-slate-700", "dark:text-slate-300");
+
+          // Reset input filter dulu
+          document.getElementById("filter-max-retail").value = "";
+          document.getElementById("filter-min-corp").value = "";
+          document.getElementById("filter-min-foreign").value = "";
+          document.getElementById("filter-min-price").value = "";
+
+          const preset = btn.dataset.preset;
+          if (preset === "conglo_pattern") {
+            document.getElementById("filter-min-corp").value = "50";
+            document.getElementById("filter-max-retail").value = "15";
+          } else if (preset === "low_retail") {
+            document.getElementById("filter-max-retail").value = "10";
+          } else if (preset === "foreign_dom") {
+            document.getElementById("filter-min-foreign").value = "50";
+          } else if (preset === "non_gocap") {
+            document.getElementById("filter-min-price").value = "51";
+          }
+          applyScreenerFilters();
+        });
+      });
+
+      // Filter Inputs Live Listeners
+      ["filter-search", "filter-group", "filter-max-retail", "filter-min-corp", "filter-min-foreign", "filter-min-price"].forEach(id => {
+        document.getElementById(id).addEventListener("input", applyScreenerFilters);
+      });
+
+      // Table Sorting
+      document.querySelectorAll("th[data-sort]").forEach(th => {
+        th.addEventListener("click", () => {
+          const col = th.dataset.sort;
+          if (state.sortCol === col) {
+            state.sortAsc = !state.sortAsc;
+          } else {
+            state.sortCol = col;
+            state.sortAsc = col === "code" || col === "group";
+          }
+          applyScreenerFilters();
+        });
+      });
+
+      // Pagination
+      document.getElementById("prev-page").addEventListener("click", () => {
+        if (state.currentPage > 1) {
+          state.currentPage--;
+          renderScreenerTable();
+        }
+      });
+      document.getElementById("next-page").addEventListener("click", () => {
+        if (state.currentPage * state.pageSize < state.filteredSnapshot.length) {
+          state.currentPage++;
+          renderScreenerTable();
+        }
+      });
+
+      // Export CSV
+      document.getElementById("btn-export-csv").addEventListener("click", exportFilteredToCSV);
+
+      // Trend Tab Search
+      document.getElementById("btn-analyze-trend").addEventListener("click", () => {
+        const val = document.getElementById("trend-stock-input").value.trim().toUpperCase();
+        if (val) {
+          state.selectedTrendStock = val;
+          renderTrendAnalysis(val);
+        }
+      });
+      document.getElementById("trend-stock-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          const val = e.target.value.trim().toUpperCase();
+          if (val) {
+            state.selectedTrendStock = val;
+            renderTrendAnalysis(val);
+          }
+        }
+      });
+
+      // Manage Groups Save / Cancel / Export / Import
+      document.getElementById("btn-save-group").addEventListener("click", () => {
+        const name = document.getElementById("input-group-name").value.trim();
+        const rawTickers = document.getElementById("input-group-tickers").value;
+        if (!name || !rawTickers.trim()) {
+          showToast("Nama grup dan daftar kode saham wajib diisi.", "error");
+          return;
+        }
+        const tickers = Array.from(new Set(
+          rawTickers.split(/[\s,]+/).map(t => t.trim().toUpperCase()).filter(Boolean)
+        ));
+
+        if (editingGroupOriginalName && editingGroupOriginalName !== name) {
+          delete state.congloGroups[editingGroupOriginalName];
+        }
+        state.congloGroups[name] = tickers;
+        saveCongloGroups();
+        cancelEditGroup();
+        showToast(`Grup "${name}" berhasil disimpan!`, "success");
+      });
+
+      document.getElementById("btn-cancel-edit-group").addEventListener("click", cancelEditGroup);
+
+      document.getElementById("btn-export-groups").addEventListener("click", () => {
+        const blob = new Blob([JSON.stringify(state.congloGroups, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "KSEI_Conglomerate_Groups.json";
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast("Konfigurasi grup berhasil di-export ke JSON.", "success");
+      });
+
+      document.getElementById("import-groups-input").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          if (typeof parsed === "object" && parsed !== null) {
+            state.congloGroups = parsed;
+            saveCongloGroups();
+            showToast("Konfigurasi grup berhasil di-import!", "success");
+          }
+        } catch (err) {
+          showToast("File JSON tidak valid.", "error");
+        }
+        e.target.value = "";
+      });
+
+      document.getElementById("btn-restore-default-groups").addEventListener("click", () => {
+        state.congloGroups = JSON.parse(JSON.stringify(DEFAULT_CONGLO_GROUPS));
+        saveCongloGroups();
+        cancelEditGroup();
+        showToast("Daftar grup konglomerasi dikembalikan ke pengaturan default.", "info");
+      });
+    });
+  </script>
+</body>
+</html>
