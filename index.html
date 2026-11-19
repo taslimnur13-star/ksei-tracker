@@ -12,6 +12,7 @@ tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','syst
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style type="text/tailwindcss">
 @layer components{
   .card{@apply bg-white dark:bg-terminal-card rounded-2xl border border-slate-200 dark:border-terminal-border}
@@ -55,8 +56,8 @@ tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','syst
 
   <section class="card p-4 sm:p-6 grid lg:grid-cols-[1fr_20rem] gap-6">
     <div id="drop" class="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 rounded-xl p-6 text-center cursor-pointer bg-slate-50/50 dark:bg-slate-900/40 flex flex-col justify-center">
-      <input type="file" id="file-input" multiple accept=".txt,.csv" class="hidden">
-      <p class="text-sm font-semibold">Seret &amp; lepas file KSEI (.txt / .csv) ke sini, atau ketuk untuk memilih</p>
+      <input type="file" id="file-input" multiple accept=".txt,.csv,.zip" class="hidden">
+      <p class="text-sm font-semibold">Seret &amp; lepas file KSEI (.txt / .csv / .zip), kepemilikan maupun Master File Efek, atau ketuk untuk memilih</p>
       <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Bisa banyak file bulanan sekaligus. Data digabung, duplikat (Tanggal + Kode) dihapus, dan <b>tersimpan otomatis</b> di browser ini.</p>
     </div>
     <div class="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-4 border border-slate-200 dark:border-slate-800 space-y-3 text-xs">
@@ -109,6 +110,7 @@ tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','syst
           <select id="filter-lookback" class="inp"><option value="1">1 periode lalu</option><option value="3">3 periode lalu</option><option value="6">6 periode lalu</option></select></div>
         <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 self-end pb-2"><input type="checkbox" id="filter-hide-unreliable" class="rounded"> Sembunyikan data tidak andal</label>
         <div><label class="lbl">Sinyal</label><select id="filter-signal" class="inp"><option value="ALL">Semua</option><option value="ACC">Akumulasi</option><option value="DIS">Distribusi</option><option value="NET">Netral</option></select></div>
+        <div><label class="lbl">Sektor (perlu Master File Efek)</label><select id="filter-sector" class="inp"><option value="ALL">Semua Sektor</option></select></div>
       </div>
     </div>
 
@@ -173,6 +175,10 @@ tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','syst
   <section id="tab-conglomerates" class="tab-content hidden space-y-6">
     <div class="card p-4 sm:p-5"><h2 class="font-semibold text-base">Agregat Kepemilikan Grup Konglomerasi</h2><p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Persentase tertimbang kapitalisasi pasar (bukan rata-rata biasa) pada tanggal snapshot aktif.</p></div>
     <div id="conglo-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    <div class="card overflow-hidden">
+      <div class="p-4 border-b border-slate-200 dark:border-terminal-border"><h3 class="font-semibold text-sm">Ringkasan Sektor</h3><p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Persentase tertimbang M.Cap, dan jumlah saham ber-sinyal Akumulasi/Distribusi (dibanding 1 periode lalu) pada snapshot aktif.</p></div>
+      <div id="sector-box" class="overflow-x-auto"></div>
+    </div>
   </section>
 
   <!-- TAB 4: KELOLA GRUP -->
@@ -200,11 +206,12 @@ tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Inter','syst
   <details class="card p-4 text-xs text-slate-600 dark:text-slate-400">
     <summary class="cursor-pointer font-semibold text-slate-800 dark:text-slate-100">Metodologi &amp; Keterbatasan Data</summary>
     <ul class="list-disc pl-5 mt-3 space-y-1.5">
-      <li>Sumber: KSEI Balance of Position (posisi akhir bulan).</li>
+      <li>Sumber: KSEI Balance of Position (posisi akhir bulan). Nama emiten, sektor, tanggal listing, dan status berasal dari Master File Efek KSEI.</li>
+      <li>Persentase dihitung terhadap seluruh saham beredar, tetapi hanya saham scripless yang terlihat di data KSEI. Saham dengan cakupan rendah (misalnya 40%) hanya menampilkan sebagian pemegangnya; porsi di luar scripless, termasuk kemungkinan saham pengendali berbentuk warkat, tidak terlihat.</li>
       <li>Ritel = Local ID. Korporasi = Local CP; filter konsentrasi dan Δ Korp memakai Local CP + Foreign CP.</li>
       <li>Komposisi: Ritel + Korporasi + Institusi Lokal (asuransi, dana pensiun, bank, reksadana) + Lainnya (sekuritas, yayasan, dll) + Asing.</li>
       <li>Δ dalam poin persentase (pp) terhadap periode pembanding yang dipilih.</li>
-      <li>⚠ Cek aksi korporasi: jumlah saham berubah lebih dari 0,5%, sehingga persentase bisa bergeser tanpa transaksi. ⚠ Jeda: ada periode yang belum diunggah. ⚠ Cakupan: total lokal + asing di bawah 97% dari jumlah saham.</li>
+      <li>⚠ Cek aksi korporasi: jumlah saham berubah lebih dari 0,5%, sehingga persentase bisa bergeser tanpa transaksi. ⚠ Jeda: ada periode yang belum diunggah. ⚠ Cakupan scripless berubah: porsi saham yang tercatat di KSEI bergeser lebih dari 1 pp (misalnya konversi warkat ke scripless), sehingga Δ% tidak sebanding.</li>
       <li>Sinyal: <b>Akumulasi</b> = Δ Korp ≥ +0,5 pp dan Δ Ritel ≤ −0,5 pp; <b>Distribusi</b> = kebalikannya. “×N periode” = N perubahan bulanan berturut-turut ke arah yang sama (terputus jika ada aksi korporasi). Akumulasi saat harga belum naik lebih menarik daripada saat harga sudah naik &gt; 30%.</li>
       <li>🔸 Risiko likuiditas: float tipis (korp &gt; 85%), harga gocap, atau M.Cap &lt; Rp500 miliar. Saham seperti ini sulit dijual cepat dan harganya mudah bergerak liar.</li>
       <li>Δ Harga memakai harga akhir bulan dari KSEI. Semua ambang (0,5 pp, 30%, 85%, Rp500 M) hanyalah panduan, bukan standar baku.</li>
@@ -229,7 +236,7 @@ const DEFAULT_GROUPS={
   "Grup MNC":["BHIT","MNCN","BMTR","KPIG","BCAP","IATA"]
 };
 const LS_GROUPS="ksei_tracker_conglo_groups_v1",DB_NAME="ksei_tracker_db",DB_STORE="records";
-const S={rec:new Map(),dates:[],date:"",groups:{},t2g:{},col:"mcapB",asc:false,page:1,size:50,rows:[],trend:"BUMI",c1:null,c2:null};
+const S={rec:new Map(),master:new Map(),mLatest:new Map(),dates:[],date:"",groups:{},t2g:{},col:"mcapB",asc:false,page:1,size:50,rows:[],trend:"BUMI",c1:null,c2:null};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt=n=>(n==null||isNaN(n))?"0":Math.round(n).toLocaleString("id-ID");
@@ -266,16 +273,22 @@ function num(v){
 }
 
 /* ===== PENYIMPANAN PERMANEN (IndexedDB) ===== */
-function openDB(){return new Promise((res,rej)=>{const q=indexedDB.open(DB_NAME,1);q.onupgradeneeded=()=>q.result.createObjectStore(DB_STORE);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
+function openDB(){return new Promise((res,rej)=>{const q=indexedDB.open(DB_NAME,2);q.onupgradeneeded=()=>{const d=q.result;[DB_STORE,"master"].forEach(n=>{if(!d.objectStoreNames.contains(n))d.createObjectStore(n)})};q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
 async function saveDB(){
   try{
-    const db=await openDB(),tx=db.transaction(DB_STORE,"readwrite");
+    const db=await openDB(),tx=db.transaction([DB_STORE,"master"],"readwrite");
     tx.objectStore(DB_STORE).put([...S.rec].filter(([,r])=>!r.demo),"all");
+    tx.objectStore("master").put([...S.master],"all");
     await new Promise((res,rej)=>{tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});
   }catch(e){toast("Data gagal disimpan permanen di browser ini.","error")}
 }
 async function loadDB(){
   try{const db=await openDB();return await new Promise((res,rej)=>{const q=db.transaction(DB_STORE).objectStore(DB_STORE).get("all");q.onsuccess=()=>res(q.result||[]);q.onerror=()=>rej(q.error)})}
+  catch(e){return[]}
+}
+
+async function loadMasterDB(){
+  try{const db=await openDB();return await new Promise((res,rej)=>{const q=db.transaction("master").objectStore("master").get("all");q.onsuccess=()=>res(q.result||[]);q.onerror=()=>rej(q.error)})}
   catch(e){return[]}
 }
 
@@ -317,9 +330,25 @@ function splitLine(line,d){
   for(const ch of line){if(ch==='"')q=!q;else if(ch===d&&!q){r.push(cur.trim());cur=""}else cur+=ch}
   r.push(cur.trim());return r;
 }
+function processMaster(lines){
+  const hd=lines[0].split("|").map(s=>s.trim().toLowerCase()),ix=n=>hd.indexOf(n);
+  const I={date:ix("date"),code:ix("code"),desc:ix("description"),type:ix("type"),issuer:ix("issuer"),status:ix("status"),list:ix("listing date"),sec:ix("num. of sec"),scr:ix("total scripless"),sector:ix("sector")};
+  if(I.date<0||I.code<0||I.type<0||I.sec<0)return 0;
+  let n=0;
+  for(let i=1;i<lines.length;i++){
+    const c=lines[i].split("|").map(s=>s.trim());
+    if((c[I.type]||"").toUpperCase()!=="EQUITY")continue;
+    const date=normDate(c[I.date]),code=(c[I.code]||"").toUpperCase(),sec=num(c[I.sec]);
+    if(!date||!code||sec<=0)continue;
+    const scr=num(c[I.scr]);
+    S.master.set(`${date}|${code}`,{date,timestamp:parseTs(date),code,name:c[I.desc]||"",issuer:c[I.issuer]||"",sector:c[I.sector]||"",status:c[I.status]||"",listTs:parseTs(c[I.list]),secNum:sec,scripless:scr,cov:scr/sec*100});n++;
+  }
+  return n;
+}
 function processText(text){
   const lines=text.replace(/^\uFEFF/,"").split(/\r?\n/).filter(l=>l.trim());
   if(lines.length<2)return 0;
+  if(/isin code/i.test(lines[0])&&/sector/i.test(lines[0]))return processMaster(lines);
   const d=lines[0].includes("|")?"|":lines[0].includes(";")?";":",",sum=a=>a.reduce((x,y)=>x+y,0);
   let n=0;
   for(let i=1;i<lines.length;i++){
@@ -336,7 +365,15 @@ async function handleFiles(files){
   if(!files||!files.length)return;
   for(const[k,r]of S.rec)if(r.demo)S.rec.delete(k);
   let total=0;
-  for(const f of files){try{total+=processText(await f.text())}catch(e){toast(`Gagal membaca ${f.name}`,"error")}}
+  for(const f of files){
+    try{
+      if(/\.zip$/i.test(f.name)){
+        if(typeof JSZip==="undefined"){toast("Pustaka ZIP gagal dimuat. Ekstrak ZIP lalu unggah file .txt-nya.","error");continue}
+        const z=await JSZip.loadAsync(f);
+        for(const e of Object.values(z.files)){if(!e.dir&&/\.(txt|csv)$/i.test(e.name))total+=processText(await e.async("string"))}
+      }else total+=processText(await f.text());
+    }catch(e){toast(`Gagal membaca ${f.name}`,"error")}
+  }
   if(total>0){refresh();await saveDB();toast(`${total.toLocaleString("id-ID")} baris dari ${files.length} file dimuat dan disimpan.`,"success")}
   else toast("Format file tidak dikenali atau tidak ada data EQUITY valid.","error");
 }
@@ -364,6 +401,7 @@ function loadDemo(){
 /* ===== REFRESH UI ===== */
 function codesList(){const s=new Set();S.rec.forEach(r=>s.add(r.code));return[...s].sort()}
 function refresh(){
+  S.mLatest=new Map();S.master.forEach(m=>{const c=S.mLatest.get(m.code);if(!c||m.timestamp>c.timestamp)S.mLatest.set(m.code,m)});
   const dm=new Map(),cnt={};
   S.rec.forEach(r=>{dm.set(r.date,r.timestamp);cnt[r.date]=(cnt[r.date]||0)+1});
   S.dates=[...dm].sort((a,b)=>a[1]-b[1]).map(e=>e[0]);
@@ -372,13 +410,14 @@ function refresh(){
   $("status-text").textContent=has?`${S.rec.size.toLocaleString("id-ID")} baris (${S.dates.length} periode)`:"Belum ada data dimuat";
   $("periods-badge").textContent=`${S.dates.length} Periode`;
   $("periods-list").innerHTML=has?S.dates.map(d=>`<div class="flex justify-between py-0.5 border-b border-slate-200/50 dark:border-slate-800/50"><span>${d}</span><span class="text-slate-400">${cnt[d]} emiten</span></div>`).join(""):`<p class="italic text-slate-400">Belum ada file diunggah.</p>`;
+  if(S.mLatest.size)$("periods-list").insertAdjacentHTML("beforeend",`<div class="mt-1 pt-1 border-t border-slate-200 dark:border-slate-700 text-emerald-600 dark:text-emerald-400">Master Efek: ${S.mLatest.size} saham</div>`);
   const rev=[...S.dates].reverse();
   $("snap-date").innerHTML=rev.map(d=>`<option>${d}</option>`).join("");
   if(!S.dates.includes(S.date))S.date=rev[0]||"";
   $("snap-date").value=S.date;
   const codes=codesList();
   $("stock-list").innerHTML=codes.map(c=>`<option value="${c}">`).join("");
-  pills();applyFilters();summary();
+  fillSectorSelect();pills();applyFilters();summary();sectorSummary();
   if(codes.length&&!codes.includes(S.trend))S.trend=codes.includes("BUMI")?"BUMI":codes[0];
   $("trend-input").value=codes.length?S.trend:"";
   renderTrend(codes.length?S.trend:"");
@@ -390,31 +429,36 @@ function pills(){
 }
 
 /* ===== TAB 1: SCREENER ===== */
-const COLS=[["code","Kode",0],["group","Grup Konglo",0],["price","Harga"],["secNum","Total Saham"],["pctRetail","% Ritel (ID)"],["pctCorp","% Korp (CP)"],["pctInstLocal","% Inst. Lokal"],["pctLocal","% Total Lokal"],["pctForeign","% Total Asing"],["mcapB","M.Cap (Miliar)"],["dRetail","Δ Ritel (pp)"],["dCorp","Δ Korp (pp)"],["dPrice","Δ Harga (%)"]];
+const COLS=[["code","Kode",0],["group","Grup Konglo",0],["sector","Sektor",0],["price","Harga"],["secNum","Total Saham"],["pctRetail","% Ritel (ID)"],["pctCorp","% Korp (CP)"],["pctInstLocal","% Inst. Lokal"],["pctLocal","% Total Lokal"],["pctForeign","% Total Asing"],["mcapB","M.Cap (Miliar)"],["dRetail","Δ Ritel (pp)"],["dCorp","Δ Korp (pp)"],["dPrice","Δ Harga (%)"]];
 $("thead").innerHTML=COLS.map(([k,l,r=1])=>`<th class="th cursor-pointer hover:text-blue-500 ${r?"text-right":"text-left"}" data-sort="${k}">${l} ↕</th>`).join("")+`<th class="th text-left">Sinyal</th><th class="th text-left">Catatan &amp; Risiko</th>`;
 
 function calcDelta(cur,prev,lb){
   const flags=[];
-  if(cur.coverage!=null&&cur.coverage<97)flags.push(`Cakupan ${cur.coverage.toFixed(0)}%`);
   if(!prev)return{dRetail:null,dCorp:null,dForeign:null,dPrice:null,flags,unreliable:flags.length>0};
   const gap=Math.round((cur.timestamp-prev.timestamp)/864e5);
   if(gap>lb*45)flags.push(`Jeda ${gap} hari`);
   if(Math.abs(cur.secNum/prev.secNum-1)>0.005)flags.push("Cek aksi korporasi");
+  if(cur.coverage!=null&&prev.coverage!=null&&Math.abs(cur.coverage-prev.coverage)>1)flags.push(`Cakupan scripless berubah ${sgn(cur.coverage-prev.coverage,x=>x.toFixed(1))} pp`);
   return{dPrice:prev.price>0?(cur.price/prev.price-1)*100:null,dRetail:cur.pctRetail-prev.pctRetail,dCorp:(cur.pctCorpTotal??cur.pctCorp)-(prev.pctCorpTotal??prev.pctCorp),dForeign:cur.pctForeign-prev.pctForeign,flags,unreliable:flags.length>0};
 }
 const TH=0.5;
-function riskTags(r){
+function riskTags(r,m){
   const t=[],c=r.pctCorpTotal??r.pctCorp;
   if(c>85)t.push("Float tipis (korp >85%)");
   if(r.price<=50)t.push("Harga gocap");
   if(r.mcapB<500)t.push("M.Cap kecil (<Rp500 M)");
+  if(r.coverage!=null&&r.coverage<60)t.push(`Hanya ${r.coverage.toFixed(0)}% saham terlihat di data KSEI`);
+  if(m){
+    if(m.listTs&&r.timestamp>=m.listTs&&r.timestamp-m.listTs<365*864e5)t.push("IPO < 12 bulan");
+    if(m.status&&m.status.toUpperCase()!=="ACTIVE")t.push("Status "+m.status);
+  }
   return t;
 }
 function streakOf(code,ci){
   let type=0,n=0;
   for(let k=ci;k>0;k--){
     const a=S.rec.get(`${S.dates[k]}|${code}`),b=S.rec.get(`${S.dates[k-1]}|${code}`);
-    if(!a||!b||Math.abs(a.secNum/b.secNum-1)>0.005)break;
+    if(!a||!b||Math.abs(a.secNum/b.secNum-1)>0.005||Math.abs((a.coverage??0)-(b.coverage??0))>1)break;
     const dc=(a.pctCorpTotal??a.pctCorp)-(b.pctCorpTotal??b.pctCorp),dr=a.pctRetail-b.pctRetail;
     const t=dc>0&&dr<0?1:dc<0&&dr>0?-1:0;
     if(!t||(type&&t!==type))break;
@@ -424,7 +468,7 @@ function streakOf(code,ci){
 }
 function signal(r){
   if(r.dCorp==null)return{key:"NA",label:"n/a (belum ada periode pembanding)",cls:"text-slate-400"};
-  if(r.flags.some(f=>f.startsWith("Cek aksi")))return{key:"NA",label:"Tidak dinilai: ada aksi korporasi",cls:"text-amber-500"};
+  if(r.flags.some(f=>f.startsWith("Cek aksi")||f.startsWith("Cakupan")))return{key:"NA",label:"Tidak dinilai: aksi korporasi / cakupan data berubah",cls:"text-amber-500"};
   const p=r.dPrice??0,n=r.streak?r.streak.n:0,ty=r.streak?r.streak.type:0;
   if(r.dCorp>=TH&&r.dRetail<=-TH)return{key:"ACC",cls:"text-emerald-600 dark:text-emerald-400",label:"Akumulasi"+(ty===1&&n>=2?` ×${n} periode`:"")+(p>30?" · harga sudah naik jauh, hati-hati mengejar":p<=10?" · harga belum lari":"")};
   if(r.dCorp<=-TH&&r.dRetail>=TH)return{key:"DIS",cls:"text-rose-600 dark:text-rose-400",label:"Distribusi"+(ty===-1&&n>=2?` ×${n} periode`:"")+(p>10?" · waspada, harga naik saat distribusi":"")};
@@ -439,11 +483,13 @@ function applyFilters(){
   S.rec.forEach(r=>{
     if(r.date!==S.date)return;
     const x={...r,group:S.t2g[r.code]||"",...calcDelta(r,pd?S.rec.get(`${pd}|${r.code}`):null,lb)};
-    x.risk=riskTags(r);x.streak=streakOf(r.code,ci);x.sig=signal(x);rows.push(x);
+    const mm=S.mLatest.get(r.code);x.name=mm?mm.name:"";x.sector=mm?mm.sector:"";
+    x.risk=riskTags(r,mm);x.streak=streakOf(r.code,ci);x.sig=signal(x);rows.push(x);
   });
-  const sig=$("filter-signal").value;
+  const sig=$("filter-signal").value,sec=$("filter-sector").value;
   rows=rows.filter(r=>{
     if(sig!=="ALL"&&r.sig.key!==sig)return false;
+    if(sec!=="ALL"&&r.sector!==sec)return false;
     if(q&&!r.code.includes(q))return false;
     if(g==="ANY"&&!r.group)return false;
     if(g!=="ALL"&&g!=="ANY"&&r.group!==g)return false;
@@ -472,15 +518,16 @@ function renderTable(){
   const t=S.rows.length,body=$("tbody");
   $("count").textContent=`${t.toLocaleString("id-ID")} Emiten`;
   if(!t){
-    body.innerHTML=`<tr><td colspan="15" class="py-10 text-center text-slate-400">${S.date?"Tidak ada saham yang sesuai filter pada tanggal ini.":"Unggah file KSEI atau klik “Muat Data Demo”."}</td></tr>`;
+    body.innerHTML=`<tr><td colspan="16" class="py-10 text-center text-slate-400">${S.date?"Tidak ada saham yang sesuai filter pada tanggal ini.":"Unggah file KSEI atau klik “Muat Data Demo”."}</td></tr>`;
     $("page-info").textContent="Menampilkan 0 - 0 dari 0";$("prev").disabled=$("next").disabled=true;return;
   }
   const s=(S.page-1)*S.size,e=Math.min(s+S.size,t);
   body.innerHTML=S.rows.slice(s,e).map(r=>{
     const rc=r.pctRetail<10?"text-emerald-600 dark:text-emerald-400 font-semibold":r.pctRetail>25?"text-rose-600 dark:text-rose-400":"";
     return`<tr data-trend="${r.code}" class="hover:bg-blue-50/60 dark:hover:bg-slate-800/60 cursor-pointer">
-      <td class="py-3 px-4 font-mono font-bold text-blue-600 dark:text-blue-400">${r.code}</td>
+      <td class="py-3 px-4 font-mono font-bold text-blue-600 dark:text-blue-400">${r.code}${r.name?`<div class="font-sans font-normal text-[10px] text-slate-500 dark:text-slate-400 max-w-[11rem] truncate">${esc(r.name)}</div>`:""}</td>
       <td class="py-3 px-4">${r.group?`<span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">${esc(r.group)}</span>`:`<span class="text-slate-400">-</span>`}</td>
+      <td class="py-3 px-4 text-[11px] text-slate-600 dark:text-slate-300">${esc(r.sector||"-")}</td>
       <td class="td">${fmt(r.price)}</td><td class="td text-slate-500 dark:text-slate-400">${fmt(r.secNum)}</td>
       <td class="td ${rc}">${pc(r.pctRetail)}</td><td class="td font-medium">${pc(r.pctCorp)}</td>
       <td class="td text-slate-600 dark:text-slate-400">${pc(r.pctInstLocal)}</td><td class="td">${pc(r.pctLocal)}</td>
@@ -494,9 +541,9 @@ function renderTable(){
 }
 function exportCSV(){
   if(!S.rows.length)return toast("Tidak ada data untuk di-export.","error");
-  const h=["Date","Code","Conglomerate_Group","Price","Sec_Num","Pct_Retail_ID","Pct_Corp_CP","Pct_Inst_Local","Pct_Total_Local","Pct_Total_Foreign","Market_Cap_Billion_IDR","Pct_Corp_Total_Local_Foreign","Delta_Retail_pp","Delta_Corp_pp","Delta_Price_pct","Signal","Flags","Risk"];
+  const h=["Date","Code","Conglomerate_Group","Price","Sec_Num","Pct_Retail_ID","Pct_Corp_CP","Pct_Inst_Local","Pct_Total_Local","Pct_Total_Foreign","Market_Cap_Billion_IDR","Pct_Corp_Total_Local_Foreign","Delta_Retail_pp","Delta_Corp_pp","Delta_Price_pct","Signal","Flags","Risk","Name","Sector"];
   const f2=x=>x==null?"":x.toFixed(2);
-  const rows=S.rows.map(r=>[r.date,r.code,`"${r.group}"`,r.price,r.secNum,r.pctRetail.toFixed(2),r.pctCorp.toFixed(2),r.pctInstLocal.toFixed(2),r.pctLocal.toFixed(2),r.pctForeign.toFixed(2),r.mcapB.toFixed(2),(r.pctCorpTotal??r.pctCorp).toFixed(2),f2(r.dRetail),f2(r.dCorp),f2(r.dPrice),`"${r.sig.label}"`,`"${r.flags.join("; ")}"`,`"${r.risk.join("; ")}"`].join(","));
+  const rows=S.rows.map(r=>[r.date,r.code,`"${r.group}"`,r.price,r.secNum,r.pctRetail.toFixed(2),r.pctCorp.toFixed(2),r.pctInstLocal.toFixed(2),r.pctLocal.toFixed(2),r.pctForeign.toFixed(2),r.mcapB.toFixed(2),(r.pctCorpTotal??r.pctCorp).toFixed(2),f2(r.dRetail),f2(r.dCorp),f2(r.dPrice),`"${r.sig.label}"`,`"${r.flags.join("; ")}"`,`"${r.risk.join("; ")}"`,`"${r.name}"`,`"${r.sector}"`].join(","));
   download(`KSEI_Screener_${S.date}.csv`,[h.join(","),...rows].join("\n"),"text/csv;charset=utf-8;");
   toast("File CSV berhasil diunduh.","success");
 }
@@ -517,8 +564,8 @@ function renderTrend(code){
     $("t-body").innerHTML=`<tr><td colspan="7" class="py-8 text-center text-slate-400">Belum ada data saham yang dipilih.</td></tr>`;return;
   }
   const last=h[h.length-1];
-  $("t-group").textContent=S.t2g[code]||"Non-Grup / Independen";
-  {const prev=h.length>1?h[h.length-2]:null,x={...last,...calcDelta(last,prev,1),risk:riskTags(last),streak:streakOf(code,S.dates.indexOf(last.date))},sg=signal(x);
+  $("t-group").textContent=(S.t2g[code]||"Non-Grup / Independen")+(S.mLatest.get(code)&&S.mLatest.get(code).sector?" · "+S.mLatest.get(code).sector:"");
+  {const prev=h.length>1?h[h.length-2]:null,x={...last,...calcDelta(last,prev,1),risk:riskTags(last,S.mLatest.get(code)),streak:streakOf(code,S.dates.indexOf(last.date))},sg=signal(x);
    $("t-signal").className="text-xs font-semibold mt-1 "+sg.cls;
    $("t-signal").textContent="Sinyal KSEI: "+sg.label+(x.risk.length?"  |  🔸 "+x.risk.join(" · "):"");}
   if(S.rcCode!==code){S.rcCode=code;$("rc-entry").value=last.price;$("rc-stop").value=""}
@@ -526,8 +573,8 @@ function renderTrend(code){
   $("t-meta").textContent=`${h.length} periode | Harga terakhir: Rp ${fmt(last.price)} | M.Cap: Rp ${fmt(last.mcapB)} Miliar | Cakupan KSEI: ${(last.coverage??100).toFixed(1)}%`;
   $("t-body").innerHTML=h.map((cur,i)=>{
     const prev=i?h[i-1]:null,gap=prev?Math.round((cur.timestamp-prev.timestamp)/864e5):0;
-    const ca=prev&&Math.abs(cur.secNum/prev.secNum-1)>0.005;
-    const flags=(gap>45?`<div class="text-[10px] text-amber-500">⚠ jeda ${gap} hari (ada periode belum diunggah)</div>`:"")+(ca?`<div class="text-[10px] text-amber-500">⚠ jumlah saham berubah, cek aksi korporasi</div>`:"");
+    const ca=prev&&Math.abs(cur.secNum/prev.secNum-1)>0.005,cc=prev&&Math.abs((cur.coverage??0)-(prev.coverage??0))>1;
+    const flags=(gap>45?`<div class="text-[10px] text-amber-500">⚠ jeda ${gap} hari (ada periode belum diunggah)</div>`:"")+(ca?`<div class="text-[10px] text-amber-500">⚠ jumlah saham berubah, cek aksi korporasi</div>`:"")+(cc?`<div class="text-[10px] text-amber-500">⚠ cakupan scripless berubah, persentase tidak sebanding</div>`:"");
     const dP=k=>{
       if(!prev)return"";const d=(cur[k]||0)-(prev[k]||0);
       if(Math.abs(d)<0.005)return`<span class="text-slate-400 text-[10px] ml-1">(0.00 pp)</span>`;
@@ -587,6 +634,28 @@ function calcRisk(){
     +box(`Target ${rr}R`,`${fmt(tp)} → +Rp ${fmt(lots*100*(tp-en))}`,"text-emerald-500")
     +(capped?`<p class="col-span-full text-amber-500">Jumlah lot dibatasi oleh modal.</p>`:"")
     +(big?`<p class="col-span-full text-amber-500">Satu posisi lebih dari 25% modal: pertimbangkan diversifikasi.</p>`:"");
+}
+
+function fillSectorSelect(){
+  const sel=$("filter-sector"),cur=sel.value,secs=[...new Set([...S.mLatest.values()].map(m=>m.sector).filter(Boolean))].sort();
+  sel.innerHTML=`<option value="ALL">Semua Sektor</option>`+secs.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+  if(secs.includes(cur))sel.value=cur;
+}
+function sectorSummary(){
+  const box=$("sector-box");
+  if(!S.date||!S.mLatest.size){box.innerHTML=`<p class="p-4 text-xs text-slate-400">Unggah Master File Efek KSEI (zip atau txt) untuk melihat ringkasan sektor.</p>`;return}
+  const ci=S.dates.indexOf(S.date),pd=ci>=1?S.dates[ci-1]:null,agg={};
+  S.rec.forEach(r=>{
+    if(r.date!==S.date)return;
+    const m=S.mLatest.get(r.code),sc=(m&&m.sector)||"(tanpa sektor)";
+    const x={...r,...calcDelta(r,pd?S.rec.get(`${pd}|${r.code}`):null,1)};x.streak=streakOf(r.code,ci);
+    const a=agg[sc]=agg[sc]||{n:0,cap:0,rt:0,cp:0,fr:0,acc:0,dis:0},k=signal(x).key;
+    a.n++;a.cap+=r.secNum*r.price;a.rt+=r.localID*r.price;a.cp+=(r.localCP+(r.foreignCP||0))*r.price;a.fr+=r.foreignTotal*r.price;
+    if(k==="ACC")a.acc++;if(k==="DIS")a.dis++;
+  });
+  const rows=Object.entries(agg).sort((a,b)=>b[1].cap-a[1].cap),p=(v,c)=>c?(v/c*100).toFixed(1)+"%":"-";
+  box.innerHTML=`<table class="w-full text-left border-collapse"><thead><tr class="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800"><th class="th">Sektor</th><th class="th text-right">Emiten</th><th class="th text-right">M.Cap (Miliar)</th><th class="th text-right">Ritel</th><th class="th text-right">Korp (lokal+asing)</th><th class="th text-right">Asing</th><th class="th text-right">Akumulasi</th><th class="th text-right">Distribusi</th></tr></thead><tbody class="divide-y divide-slate-100 dark:divide-slate-800/70 text-xs tabular-nums">`+
+    rows.map(([s,a])=>`<tr><td class="py-3 px-4">${esc(s)}</td><td class="td">${a.n}</td><td class="td">${fmt(a.cap/1e9)}</td><td class="td">${p(a.rt,a.cap)}</td><td class="td">${p(a.cp,a.cap)}</td><td class="td">${p(a.fr,a.cap)}</td><td class="td text-emerald-600 dark:text-emerald-400 font-semibold">${a.acc||"-"}</td><td class="td text-rose-600 dark:text-rose-400 font-semibold">${a.dis||"-"}</td></tr>`).join("")+`</tbody></table>`;
 }
 
 /* ===== TAB 3: RINGKASAN GRUP (tertimbang M.Cap) ===== */
@@ -656,7 +725,7 @@ window.addEventListener("DOMContentLoaded",async()=>{
   $("btn-backup").onclick=()=>{
     const recs=[...S.rec.values()].filter(r=>!r.demo);
     if(!recs.length)return toast("Belum ada data untuk di-backup.","error");
-    download(`KSEI_Backup_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({version:2,savedAt:new Date().toISOString(),records:recs,groups:S.groups}),"application/json");
+    download(`KSEI_Backup_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({version:2,savedAt:new Date().toISOString(),records:recs,groups:S.groups,master:[...S.master.values()]}),"application/json");
     toast("Backup berhasil diunduh.","success");
   };
   $("restore-input").onchange=async e=>{
@@ -665,6 +734,7 @@ window.addEventListener("DOMContentLoaded",async()=>{
       const p=JSON.parse(await f.text());if(!Array.isArray(p.records))throw new Error("format");
       for(const[k,r]of S.rec)if(r.demo)S.rec.delete(k);
       p.records.forEach(r=>{if(r&&r.date&&r.code)S.rec.set(`${r.date}|${r.code}`,r)});
+      (p.master||[]).forEach(m=>{if(m&&m.date&&m.code)S.master.set(`${m.date}|${m.code}`,m)});
       const g=cleanGroups(p.groups);if(g){S.groups=g;saveGroups()}
       refresh();await saveDB();toast(`${p.records.length.toLocaleString("id-ID")} baris berhasil dipulihkan.`,"success");
     }catch(err){toast("File backup tidak valid.","error")}
@@ -675,11 +745,11 @@ window.addEventListener("DOMContentLoaded",async()=>{
     const b=e.currentTarget;
     if(!armed){armed=true;b.textContent="Yakin? Klik lagi untuk hapus SEMUA data";setTimeout(()=>{armed=false;b.textContent="Reset / Hapus Semua Data"},4000);return}
     armed=false;b.textContent="Reset / Hapus Semua Data";
-    S.rec.clear();refresh();await saveDB();toast("Semua data telah dihapus.","info");
+    S.rec.clear();S.master.clear();refresh();await saveDB();toast("Semua data telah dihapus.","info");
   };
 
   document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
-  $("snap-date").onchange=e=>{S.date=e.target.value;applyFilters();summary()};
+  $("snap-date").onchange=e=>{S.date=e.target.value;applyFilters();summary();sectorSummary()};
   document.querySelectorAll("#presets .btn").forEach(b=>b.onclick=()=>{
     document.querySelectorAll("#presets .btn").forEach(x=>x.classList.toggle("on",x===b));
     FILTER_IDS.forEach(id=>$(id).value="");$("filter-signal").value="ALL";$("filter-hide-unreliable").checked=false;
@@ -687,7 +757,7 @@ window.addEventListener("DOMContentLoaded",async()=>{
     for(const[k,v]of Object.entries(p)){if(k==="hide")$("filter-hide-unreliable").checked=true;else $(k).value=v}
     applyFilters();
   });
-  [...FILTER_IDS,"filter-group","filter-lookback","filter-hide-unreliable","filter-signal"].forEach(id=>$(id).addEventListener("input",applyFilters));
+  [...FILTER_IDS,"filter-group","filter-lookback","filter-hide-unreliable","filter-signal","filter-sector"].forEach(id=>$(id).addEventListener("input",applyFilters));
   $("thead").onclick=e=>{
     const th=e.target.closest("[data-sort]");if(!th)return;
     const c=th.dataset.sort;
@@ -728,7 +798,9 @@ window.addEventListener("DOMContentLoaded",async()=>{
   };
   $("g-default").onclick=()=>{S.groups=cleanGroups(DEFAULT_GROUPS);saveGroups();cancelEdit();toast("Grup dikembalikan ke default.","info")};
 
+  const savedM=await loadMasterDB();if(savedM.length)S.master=new Map(savedM);
   const saved=await loadDB();
+  if(!saved.length&&savedM.length)refresh();
   if(saved.length){S.rec=new Map(saved);refresh();toast(`${saved.length.toLocaleString("id-ID")} baris dimuat dari penyimpanan browser.`,"success")}
 });
 </script>
